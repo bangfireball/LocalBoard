@@ -1,87 +1,60 @@
-# Moodle Workboard — Design
+# Board — Design
 
-## Product direction
+## Direction
 
-A focused, self-hosted Kanban board for a senior developer building custom Moodle plugins. The product should feel faster and calmer than a general project-management suite while retaining rich technical metadata and complete API control.
+A deliberately simple, Trello-inspired personal Kanban board. The product uses familiar lists and cards, quick inline creation, drag-and-drop movement, and a lightweight detail dialog. It borrows the interaction model—not Trello branding, assets, or exact visual design.
 
-## Core goals
+## Principles
 
-1. **Glanceable work state** — columns, WIP limits, priorities, due dates, estimates, checklist progress, and sprint metrics.
-2. **Moodle-aware tasks** — first-class plugin component name, target Moodle version, issue/repository URL, and tags for APIs or subsystems.
-3. **API-first operation** — every meaningful board operation is available under a versioned JSON REST API, suitable for shell scripts, CI jobs, or AI agents.
-4. **Simple homelab operation** — one container, one persistent volume, health check, no external database, and optional API-key protection.
-5. **Low maintenance** — server-rendered static assets with no frontend build chain; atomic JSON persistence suitable for a personal/small-team board.
+- **The board is the product.** No dashboard, metrics, sidebar, sprints, priorities, estimates, or developer-specific fields.
+- **Fast capture.** Add a card directly at the bottom of any list. A title is the only required field.
+- **Details stay optional.** Cards may have a description, labels, due date, and checklist.
+- **Direct manipulation.** Drag cards between lists. Click names to rename them.
+- **API parity.** Scripts and AI agents can do everything the browser can do through `/api/v1`.
+- **Easy to host.** One Node process or one Docker container, with an atomic JSON data file.
 
-## User experience
+## Interface
 
-- Dark navigation rail and a low-noise canvas inspired by developer tools.
-- Horizontal, draggable columns with explicit WIP counters.
-- Cards summarize type, priority, plugin, tags, checklist, estimate, and due date.
-- Global search plus type and priority filters.
-- Task modal provides rich metadata without cluttering the board.
-- Activity log gives a compact audit trail.
-- Keyboard shortcut: `N` creates a task; `Escape` closes dialogs.
-- Light and dark themes persist locally.
-- Responsive layout preserves horizontal Kanban behavior on small screens.
+- A compact top bar contains the product name, search, and API link.
+- The board title and background controls sit above horizontally scrolling lists.
+- Lists use a neutral surface over a colored board background.
+- Cards show only useful signals: label colors, due date, description indicator, and checklist progress.
+- Card details open in a focused dialog.
+- Adding cards and lists happens inline, without navigating away.
+
+## Data model
+
+```text
+Board
+ ├── name
+ ├── background
+ └── Lists (ordered)
+      └── Cards (ordered)
+           ├── title
+           ├── description
+           ├── labels[]
+           ├── dueDate
+           └── checklist[]
+```
 
 ## Architecture
 
-```text
-Browser / script / AI agent
-          │
-          ├── Static UI (HTML + CSS + vanilla JS)
-          │
-          └── REST /api/v1/*
-                    │
-              Express service
-                    │
-          atomic board.json writes
-                    │
-          Docker named volume
-```
+The static browser client and external clients use the same Express JSON API. `Store` writes a versioned JSON document through a temporary file and atomic rename. This is appropriate for a personal homelab board; a multi-user version should use a transactional database.
 
-### Persistence
+## API
 
-The data store is a versioned JSON document containing board metadata, columns, cards, and the latest 500 activity events. Writes go to a temporary file and are atomically renamed to reduce corruption risk. This is intentionally optimized for a single-user homelab deployment. For a larger multi-user installation, replace `Store` with a PostgreSQL adapter while keeping the HTTP contract.
+- `GET /api/v1/state` — complete board state
+- `PATCH /api/v1/board` — rename or recolor the board
+- `GET/POST /api/v1/lists` — list or create lists
+- `PATCH/DELETE /api/v1/lists/:id` — rename or remove an empty list
+- `GET/POST /api/v1/cards` — search/list or create cards
+- `GET/PATCH/DELETE /api/v1/cards/:id` — card operations
+- `POST /api/v1/cards/:id/move` — move/reorder a card
+- `GET /api/v1/export` — download a backup
+- `GET /api/openapi.json` — machine-readable contract
 
-### Data model
+An optional `KANBAN_API_KEY` protects API routes. The browser asks for it once per tab and keeps it in session storage.
 
-- **Board:** name, description, timestamps.
-- **Column:** name, color, order, optional WIP limit.
-- **Card:** title, Markdown-ready description, column/order, priority, type, tags, assignee, due date, estimate, Moodle version, plugin component, tracker URL, checklist, archived flag, timestamps.
-- **Activity:** action, related card, human-readable detail, timestamp.
+## Deployment and security
 
-## API design
-
-- Base path: `/api/v1`
-- JSON requests and responses.
-- Stable resource IDs with readable prefixes (`card_`, `col_`, `event_`).
-- Optional authentication through `X-API-Key` or `Authorization: Bearer ...` when `KANBAN_API_KEY` is set.
-- Machine-readable contract at `/api/openapi.json`.
-- Health endpoint at `/health` is intentionally unauthenticated for container orchestration.
-- Board export endpoint provides simple backups and migration.
-
-## Security and deployment
-
-- Runs as an unprivileged container user.
-- `no-new-privileges` in Compose.
-- Common security headers and request body limit.
-- API key comparison is currently appropriate for a private homelab. Place the service behind a TLS reverse proxy (Caddy, Traefik, or Nginx) before access outside the LAN.
-- Back up the Docker volume, or regularly download `/api/v1/export`.
-
-## Deliberate tradeoffs
-
-- JSON persistence avoids database administration but is not intended for high write concurrency.
-- The browser UI uses the same API as automation, keeping capabilities aligned.
-- Descriptions are stored as plain text and ready for future Markdown rendering; rendering is withheld now to avoid introducing an HTML sanitization dependency.
-- Authentication protects the entire API when enabled. A future multi-user release should add sessions, roles, and per-board authorization.
-
-## Potential next iterations
-
-- Multiple boards and saved views.
-- Recurring tasks and task templates for Moodle release workflows.
-- GitLab/GitHub and Moodle Tracker synchronization.
-- Webhooks for card events.
-- PostgreSQL adapter and user accounts.
-- Markdown preview, comments, and file attachments.
-- Cycle-time analytics and sprint history.
+The app binds to `0.0.0.0`, can run directly under Node, and includes Docker support. Use a reverse proxy with TLS outside a trusted LAN. The container runs unprivileged and persists `/app/data` in a named volume.

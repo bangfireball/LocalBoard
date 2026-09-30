@@ -6,39 +6,35 @@ const path = require('node:path');
 const { Store } = require('../src/store');
 
 function makeStore() {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'workboard-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'board-'));
   return new Store(path.join(directory, 'board.json'));
 }
 
-test('creates, updates, moves, filters, and deletes a card', () => {
+test('creates, edits, searches, moves, and deletes cards', () => {
   const store = makeStore();
-  const card = store.createCard({ title: 'Privacy API', columnId: 'col_ready', priority: 'high', tags: ['moodle', 'api'] });
-  assert.equal(card.columnId, 'col_ready');
-  assert.equal(store.listCards({ priority: 'high' }).length, 1);
-  assert.equal(store.listCards({ q: 'privacy' })[0].id, card.id);
+  const card = store.createCard({ title: 'Review pull request', listId: 'list_todo', labels: ['work'] });
+  assert.equal(card.listId, 'list_todo');
+  assert.equal(store.listCards({ q: 'pull' })[0].id, card.id);
+  assert.equal(store.listCards({ label: 'work' }).length, 1);
 
-  store.updateCard(card.id, { estimate: 3, checklist: [{ text: 'Tests', done: true }] });
-  assert.equal(store.getCard(card.id).estimate, 3);
+  store.updateCard(card.id, { description: 'Check the tests', checklist: [{ text: 'Read diff', done: true }] });
   assert.equal(store.getCard(card.id).checklist[0].done, true);
-
-  store.moveCard(card.id, 'col_progress', 0);
-  assert.equal(store.getCard(card.id).columnId, 'col_progress');
-
+  store.moveCard(card.id, 'list_doing', 0);
+  assert.equal(store.getCard(card.id).listId, 'list_doing');
   store.deleteCard(card.id);
   assert.throws(() => store.getCard(card.id), /not found/);
 });
 
-test('columns can be created and removed while preserving cards', () => {
+test('creates, renames, and removes an empty list', () => {
   const store = makeStore();
-  const column = store.createColumn({ name: 'Blocked', wipLimit: 2 });
-  const card = store.createCard({ title: 'Waiting', columnId: column.id });
-  store.deleteColumn(column.id, 'col_backlog');
-  assert.equal(store.getCard(card.id).columnId, 'col_backlog');
+  const list = store.createList({ name: 'Waiting' });
+  store.updateList(list.id, { name: 'Blocked' });
+  assert.equal(store.state.lists.find((item) => item.id === list.id).name, 'Blocked');
+  store.deleteList(list.id);
+  assert.equal(store.state.lists.some((item) => item.id === list.id), false);
 });
 
-test('rejects cards without titles and deletion of the last column', () => {
+test('will not delete a list containing cards', () => {
   const store = makeStore();
-  assert.throws(() => store.createCard({}), /title is required/);
-  for (const column of [...store.state.columns].slice(1)) store.deleteColumn(column.id, 'col_backlog');
-  assert.throws(() => store.deleteColumn('col_backlog'), /only column/);
+  assert.throws(() => store.deleteList('list_todo'), /move or delete/);
 });

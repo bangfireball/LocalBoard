@@ -1,8 +1,8 @@
 {
-  "name": "moodle-workboard",
-  "version": "1.0.0",
+  "name": "simple-work-board",
+  "version": "2.0.0",
   "private": true,
-  "description": "A self-hosted, API-first Kanban board for Moodle plugin development.",
+  "description": "A simple, self-hosted, API-first Kanban board.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

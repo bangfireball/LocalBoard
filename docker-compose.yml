@@ -1,7 +1,7 @@
 services:
   workboard:
     build: .
-    container_name: moodle-workboard
+    container_name: simple-work-board
     restart: unless-stopped
     ports:
       - "3000:3000"

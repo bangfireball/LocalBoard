@@ -49,13 +49,32 @@
         </section>
         <aside>
           <label>List<select name="listId" id="list-select"></select></label>
-          <label>Labels<input name="labels" placeholder="backend, urgent"></label>
+          <div class="labels-control"><span>Labels</span><div id="selected-labels" class="selected-labels"></div><button type="button" class="muted-button" id="edit-labels">Edit labels</button></div>
           <label>Due date<input name="dueDate" type="date"></label>
           <button type="button" class="danger" id="delete-card">Delete card</button>
         </aside>
       </div>
       <div class="modal-actions"><button type="button" class="muted-button" data-close>Cancel</button><button class="save-button" type="submit">Save</button></div>
     </form>
+  </dialog>
+
+  <dialog id="labels-dialog" class="labels-modal">
+    <div class="labels-modal-content">
+      <button type="button" class="close" data-close-labels aria-label="Close">×</button>
+      <h2>Labels</h2>
+      <p>Select labels for this card or customize this board’s labels.</p>
+      <div id="label-options" class="label-options"></div>
+      <div class="label-editor">
+        <h3 id="label-editor-title">Create a label</h3>
+        <div class="label-editor-fields"><input id="label-name" maxlength="60" placeholder="Label name"><input id="label-color" type="color" value="#4bce97" aria-label="Label color"></div>
+        <div class="label-editor-actions"><button type="button" id="cancel-label-edit" class="muted-button" hidden>Cancel edit</button><button type="button" id="delete-label" class="danger" hidden>Delete</button><button type="button" id="save-label" class="save-button">Create</button></div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="image-dialog" class="image-modal">
+    <button type="button" class="image-close" data-close-image aria-label="Close image">×</button>
+    <img id="full-image" alt="Full-size attachment">
   </dialog>
 
   <dialog id="text-dialog" class="small-modal">

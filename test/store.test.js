@@ -12,10 +12,11 @@ function makeStore() {
 
 test('creates, edits, searches, moves, and deletes cards', () => {
   const store = makeStore();
-  const card = store.createCard({ title: 'Review pull request', listId: 'list_todo', labels: ['work'] });
+  const label = store.createLabel('board_main', { name: 'Work', color: '#4bce97' });
+  const card = store.createCard({ title: 'Review pull request', listId: 'list_todo', labels: [label.id] });
   assert.equal(card.listId, 'list_todo');
   assert.equal(store.listCards({ q: 'pull' })[0].id, card.id);
-  assert.equal(store.listCards({ label: 'work' }).length, 1);
+  assert.equal(store.listCards({ label: label.id }).length, 1);
 
   store.updateCard(card.id, { description: 'Check the tests', checklist: [{ text: 'Read diff', done: true }] });
   assert.equal(store.getCard(card.id).checklist[0].done, true);
@@ -48,6 +49,16 @@ test('creates independent boards with their own lists and cards', () => {
   const card = store.createCard({ title: 'New task', listId: view.lists[0].id });
   assert.equal(store.boardState(board.id).cards[0].id, card.id);
   assert.equal(store.boardState('board_main').cards.some((item) => item.id === card.id), false);
+});
+
+test('board labels are customizable and removed from cards when deleted', () => {
+  const store = makeStore();
+  const label = store.createLabel('board_main', { name: 'Urgent', color: '#f87168' });
+  const card = store.createCard({ title: 'Fix now', listId: 'list_todo', labels: [label.id] });
+  store.updateLabel('board_main', label.id, { name: 'Critical', color: '#c9372c' });
+  assert.equal(store.listCards({ q: 'critical' })[0].id, card.id);
+  store.deleteLabel('board_main', label.id);
+  assert.deepEqual(store.getCard(card.id).labels, []);
 });
 
 test('adds and removes photo metadata on a card', () => {

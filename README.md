@@ -1,6 +1,6 @@
 # Board
 
-A simple, Trello-inspired personal Kanban app with multiple boards, lists, cards, drag and drop, photo attachments, labels, due dates, checklists, search, and a complete REST API.
+A simple, Trello-inspired personal Kanban app with multiple boards, lists, cards, drag and drop, full-size photo viewing, per-board customizable colored labels, due dates, checklists, search, and a complete REST API.
 
 Click **Board** in the top-left—or press **B**—to open the board switcher and create another board. While editing a card, paste a clipboard image directly into the description field to attach it.
 

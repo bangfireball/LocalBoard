@@ -53,13 +53,11 @@ async function load() {
   } catch (error) { toast(error.message, true); }
 }
 
+function boardLabel(labelId) { return state.board?.labels?.find((label) => label.id === labelId); }
 function visibleCards() {
   const query = state.search.toLowerCase();
-  return state.cards.filter((card) => !query || [card.title, card.description, ...card.labels].join(' ').toLowerCase().includes(query));
+  return state.cards.filter((card) => !query || [card.title, card.description, ...card.labels.map((id) => boardLabel(id)?.name || '')].join(' ').toLowerCase().includes(query));
 }
-
-const colors = ['#4bce97','#f5cd47','#fea362','#f87168','#9f8fef','#579dff','#60c6d2','#8590a2'];
-function labelColor(label) { return colors[[...label].reduce((sum, character) => sum + character.charCodeAt(0), 0) % colors.length]; }
 function dueBadge(card) {
   if (!card.dueDate) return '';
   const doneList = state.lists.find((list) => list.id === card.listId)?.name.toLowerCase() === 'done';
@@ -69,9 +67,10 @@ function dueBadge(card) {
 }
 function cardHtml(card) {
   const completed = card.checklist.filter((item) => item.done).length;
+  const labels = card.labels.map(boardLabel).filter(Boolean);
   return `<article class="card" draggable="true" tabindex="0" data-card-id="${card.id}">
     ${card.photos?.length ? `<img class="card-cover" src="${escapeHtml(card.photos[0].url)}" alt="">` : ''}
-    ${card.labels.length ? `<div class="labels">${card.labels.map((label) => `<span class="label" title="${escapeHtml(label)}" style="background:${labelColor(label)}"></span>`).join('')}</div>` : ''}
+    ${labels.length ? `<div class="labels">${labels.map((label) => `<span class="label" title="${escapeHtml(label.name || 'Label')}" style="background:${label.color}">${escapeHtml(label.name)}</span>`).join('')}</div>` : ''}
     <div class="card-title">${escapeHtml(card.title)}</div>
     ${(card.description || card.dueDate || card.checklist.length) ? `<div class="card-badges">${card.description ? '<span title="Has description">☷</span>' : ''}${dueBadge(card)}${card.checklist.length ? `<span class="${completed === card.checklist.length ? 'check-complete' : ''}">☑ ${completed}/${card.checklist.length}</span>` : ''}</div>` : ''}
   </article>`;
@@ -132,16 +131,23 @@ async function listActions(listId) {
 function populateLists() { $('#list-select').innerHTML = state.lists.sort((a,b)=>a.position-b.position).map((list)=>`<option value="${list.id}">${escapeHtml(list.name)}</option>`).join(''); }
 function openCard(cardId) {
   const card = state.cards.find((item) => item.id === cardId); if (!card) return;
-  const form = $('#card-form'); form.elements.id.value=card.id; form.elements.title.value=card.title; form.elements.description.value=card.description; form.elements.listId.value=card.listId; form.elements.labels.value=card.labels.join(', '); form.elements.dueDate.value=card.dueDate;
+  const form = $('#card-form'); form.elements.id.value=card.id; form.elements.title.value=card.title; form.elements.description.value=card.description; form.elements.listId.value=card.listId; form.elements.dueDate.value=card.dueDate;
   form.elements.checklist.value=card.checklist.map((item)=>`${item.done?'[x] ':''}${item.text}`).join('\n');
-  renderPhotos(card); $('#card-list-name').textContent=state.lists.find((list)=>list.id===card.listId)?.name || ''; $('#card-dialog').showModal();
+  renderSelectedLabels(card); renderPhotos(card); $('#card-list-name').textContent=state.lists.find((list)=>list.id===card.listId)?.name || ''; $('#card-dialog').showModal();
 }
 function renderPhotos(card){
   $('#photo-gallery').innerHTML=(card.photos||[]).map((photo)=>`<figure class="photo-item"><img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.name)}"><button type="button" class="remove-photo" data-photo-id="${photo.id}" aria-label="Remove ${escapeHtml(photo.name)}">×</button></figure>`).join('');
+  $$('.photo-item img').forEach((image)=>image.addEventListener('click',()=>openFullImage(image.src,image.alt)));
   $$('.remove-photo').forEach((button)=>button.addEventListener('click',async()=>{if(!await askConfirm({title:'Remove photo?',message:'This photo will be permanently removed.'}))return;try{await api(`/cards/${card.id}/photos/${button.dataset.photoId}`,{method:'DELETE'});card.photos=card.photos.filter((photo)=>photo.id!==button.dataset.photoId);renderPhotos(card);render();toast('Photo removed');}catch(error){toast(error.message,true);}}));
 }
+function renderSelectedLabels(card){
+  const labels=card.labels.map(boardLabel).filter(Boolean);
+  $('#selected-labels').innerHTML=labels.length?labels.map((label)=>`<span class="selected-label" style="background:${label.color}">${escapeHtml(label.name||'Label')}</span>`).join(''):'<small>No labels</small>';
+}
+function openFullImage(source,alt=''){const dialog=$('#image-dialog');$('#full-image').src=source;$('#full-image').alt=alt||'Full-size attachment';dialog.showModal();}
 function cardFromForm(form) {
-  return { title:form.elements.title.value, description:form.elements.description.value, listId:form.elements.listId.value, labels:form.elements.labels.value.split(',').map((label)=>label.trim()).filter(Boolean), dueDate:form.elements.dueDate.value, checklist:form.elements.checklist.value.split('\n').map((line)=>({text:line.replace(/^\[x\]\s*/i,'').trim(),done:/^\[x\]/i.test(line)})).filter((item)=>item.text) };
+  const card=state.cards.find((item)=>item.id===form.elements.id.value);
+  return { title:form.elements.title.value, description:form.elements.description.value, listId:form.elements.listId.value, labels:card?.labels||[], dueDate:form.elements.dueDate.value, checklist:form.elements.checklist.value.split('\n').map((line)=>({text:line.replace(/^\[x\]\s*/i,'').trim(),done:/^\[x\]/i.test(line)})).filter((item)=>item.text) };
 }
 
 $('#card-form').addEventListener('submit', async (event) => { event.preventDefault(); const form=event.currentTarget; const id=form.elements.id.value; const data=cardFromForm(form); const original=state.cards.find((card)=>card.id===id); try { await api(`/cards/${id}`,{method:'PATCH',body:JSON.stringify(data)}); if(original.listId!==data.listId) await api(`/cards/${id}/move`,{method:'POST',body:JSON.stringify({listId:data.listId,position:999})}); $('#card-dialog').close(); await load(); toast('Card saved'); } catch(error){toast(error.message,true);} });
@@ -162,7 +168,30 @@ $('#card-form').elements.description.addEventListener('paste',async(event)=>{
   event.preventDefault();
   await uploadPhotos(files,true);
 });
+let editingLabelId=null;
+function activeCard(){return state.cards.find((card)=>card.id===$('#card-form').elements.id.value);}
+function resetLabelEditor(){editingLabelId=null;$('#label-editor-title').textContent='Create a label';$('#label-name').value='';$('#label-color').value='#4bce97';$('#save-label').textContent='Create';$('#cancel-label-edit').hidden=true;$('#delete-label').hidden=true;}
+function renderLabelOptions(){
+  const card=activeCard();if(!card)return;
+  $('#label-options').innerHTML=state.board.labels.sort((a,b)=>a.position-b.position).map((label)=>`<div class="label-option-row"><input class="label-check" type="checkbox" data-label-id="${label.id}" ${card.labels.includes(label.id)?'checked':''} aria-label="Select ${escapeHtml(label.name||'unnamed label')}"><button type="button" class="label-choice" data-label-id="${label.id}" style="background:${label.color}">${escapeHtml(label.name||'Unnamed label')}</button><button type="button" class="edit-label" data-label-id="${label.id}" aria-label="Edit label">✎</button></div>`).join('');
+  $$('.label-check').forEach((checkbox)=>checkbox.addEventListener('change',()=>toggleCardLabel(checkbox.dataset.labelId,checkbox.checked)));
+  $$('.label-choice').forEach((button)=>button.addEventListener('click',()=>{const checkbox=$(`.label-check[data-label-id="${button.dataset.labelId}"]`);checkbox.checked=!checkbox.checked;toggleCardLabel(button.dataset.labelId,checkbox.checked);}));
+  $$('.edit-label').forEach((button)=>button.addEventListener('click',()=>{const label=boardLabel(button.dataset.labelId);editingLabelId=label.id;$('#label-editor-title').textContent='Edit label';$('#label-name').value=label.name;$('#label-color').value=label.color;$('#save-label').textContent='Save';$('#cancel-label-edit').hidden=false;$('#delete-label').hidden=false;}));
+}
+async function toggleCardLabel(labelId,selected){
+  const card=activeCard();if(!card)return;card.labels=selected?[...new Set([...card.labels,labelId])]:card.labels.filter((id)=>id!==labelId);
+  try{await api(`/cards/${card.id}`,{method:'PATCH',body:JSON.stringify({labels:card.labels})});renderSelectedLabels(card);render();}catch(error){toast(error.message,true);}
+}
+$('#edit-labels').addEventListener('click',()=>{resetLabelEditor();renderLabelOptions();$('#labels-dialog').showModal();});
+$$('[data-close-labels]').forEach((button)=>button.addEventListener('click',()=>$('#labels-dialog').close()));
+$('#labels-dialog').addEventListener('click',(event)=>{if(event.target===$('#labels-dialog'))$('#labels-dialog').close();});
+$('#cancel-label-edit').addEventListener('click',resetLabelEditor);
+$('#save-label').addEventListener('click',async()=>{const payload={name:$('#label-name').value,color:$('#label-color').value};try{if(editingLabelId){const updated=await api(`/boards/${currentBoardId}/labels/${editingLabelId}`,{method:'PATCH',body:JSON.stringify(payload)});Object.assign(boardLabel(editingLabelId),updated);}else{state.board.labels.push(await api(`/boards/${currentBoardId}/labels`,{method:'POST',body:JSON.stringify(payload)}));}resetLabelEditor();renderLabelOptions();renderSelectedLabels(activeCard());render();}catch(error){toast(error.message,true);}});
+$('#delete-label').addEventListener('click',async()=>{if(!editingLabelId||!await askConfirm({title:'Delete label?',message:'This label will be removed from every card on this board.'}))return;try{await api(`/boards/${currentBoardId}/labels/${editingLabelId}`,{method:'DELETE'});state.board.labels=state.board.labels.filter((label)=>label.id!==editingLabelId);state.cards.forEach((card)=>{card.labels=card.labels.filter((id)=>id!==editingLabelId);});resetLabelEditor();renderLabelOptions();renderSelectedLabels(activeCard());render();}catch(error){toast(error.message,true);}});
 $$('[data-close]').forEach((button)=>button.addEventListener('click',()=>$('#card-dialog').close()));
+$('#card-dialog').addEventListener('click',(event)=>{if(event.target===$('#card-dialog'))$('#card-dialog').close();});
+$$('[data-close-image]').forEach((button)=>button.addEventListener('click',()=>$('#image-dialog').close()));
+$('#image-dialog').addEventListener('click',(event)=>{if(event.target===$('#image-dialog'))$('#image-dialog').close();});
 $('#search').addEventListener('input',(event)=>{state.search=event.target.value;render();});
 $('#board-title').addEventListener('click',async()=>{const name=await askText({title:'Rename board',label:'Board name',value:state.board.name});if(!name||name===state.board.name)return;try{await api(`/boards/${currentBoardId}`,{method:'PATCH',body:JSON.stringify({name})});await load();}catch(error){toast(error.message,true);}});
 $('#change-background').addEventListener('click',async()=>{const palette=['#0c66e4','#0e7a5f','#7e57c2','#c9372c','#c25100','#455570'];const next=palette[(palette.indexOf(state.board.background)+1)%palette.length];try{await api(`/boards/${currentBoardId}`,{method:'PATCH',body:JSON.stringify({background:next})});await load();}catch(error){toast(error.message,true);}});
@@ -176,5 +205,5 @@ function closeBoardsSidebar(){ $('#boards-sidebar').classList.remove('open'); $(
 function toggleBoardsSidebar(){ $('#boards-sidebar').classList.contains('open')?closeBoardsSidebar():openBoardsSidebar(); }
 $('#boards-button').addEventListener('click',toggleBoardsSidebar); $('#close-sidebar').addEventListener('click',closeBoardsSidebar); $('#sidebar-backdrop').addEventListener('click',closeBoardsSidebar);
 $('#new-board-form').addEventListener('submit',async(event)=>{event.preventDefault();const input=event.currentTarget.elements.name;try{const board=await api('/boards',{method:'POST',body:JSON.stringify({name:input.value})});currentBoardId=board.id;localStorage.setItem('current-board-id',currentBoardId);input.value='';closeBoardsSidebar();await load();toast('Board created');}catch(error){toast(error.message,true);}});
-document.addEventListener('keydown',(event)=>{if(event.key==='Escape'){if($('#card-dialog').open)$('#card-dialog').close();else closeBoardsSidebar();}if(event.key.toLowerCase()==='b'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)&&!$('#card-dialog').open){event.preventDefault();toggleBoardsSidebar();}});
+document.addEventListener('keydown',(event)=>{const nestedOpen=$('#labels-dialog').open||$('#image-dialog').open||$('#text-dialog').open||$('#confirm-dialog').open;if(event.key==='Escape'&&!nestedOpen){if($('#card-dialog').open)$('#card-dialog').close();else closeBoardsSidebar();}if(event.key.toLowerCase()==='b'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)&&!$('dialog[open]')){event.preventDefault();toggleBoardsSidebar();}});
 load();

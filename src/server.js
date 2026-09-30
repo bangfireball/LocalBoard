@@ -31,7 +31,7 @@ function authenticate(req, res, next) {
   next();
 }
 
-app.get('/health', (_req, res) => res.json({ status: 'ok', version: '3.1.1', time: new Date().toISOString() }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', version: '4.0.0', time: new Date().toISOString() }));
 app.use('/uploads', express.static(uploadDirectory, { immutable: true, maxAge: '30d' }));
 app.use('/api/v1', authenticate);
 app.get('/api/v1/state', (req, res) => res.json(store.boardState(req.query.boardId)));
@@ -40,6 +40,9 @@ app.post('/api/v1/boards', (req, res) => res.status(201).json(store.createBoard(
 app.get('/api/v1/boards/:id', (req, res) => res.json(store.getBoard(req.params.id)));
 app.patch('/api/v1/boards/:id', (req, res) => res.json(store.updateBoard(req.params.id, req.body)));
 app.delete('/api/v1/boards/:id', (req, res) => { store.deleteBoard(req.params.id).forEach((photo) => removeUploadedFile(photo.url)); res.status(204).end(); });
+app.post('/api/v1/boards/:id/labels', (req, res) => res.status(201).json(store.createLabel(req.params.id, req.body)));
+app.patch('/api/v1/boards/:id/labels/:labelId', (req, res) => res.json(store.updateLabel(req.params.id, req.params.labelId, req.body)));
+app.delete('/api/v1/boards/:id/labels/:labelId', (req, res) => { store.deleteLabel(req.params.id, req.params.labelId); res.status(204).end(); });
 app.get('/api/v1/lists', (req, res) => res.json(store.boardState(req.query.boardId).lists));
 app.post('/api/v1/lists', (req, res) => res.status(201).json(store.createList(req.body)));
 app.patch('/api/v1/lists/:id', (req, res) => res.json(store.updateList(req.params.id, req.body)));

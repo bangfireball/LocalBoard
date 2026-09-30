@@ -16,7 +16,7 @@ function initialState() {
       { id: 'list_doing', boardId: 'board_main', name: 'Doing', position: 1 },
       { id: 'list_done', boardId: 'board_main', name: 'Done', position: 2 }
     ],
-    cards: [{ id: 'card_welcome', listId: 'list_todo', title: 'Welcome to your new board 👋', description: 'Drag this card between lists, or click it to add details.', labels: ['Getting started'], dueDate: '', checklist: [{ id: makeId('item'), text: 'Create your first card', done: false }], position: 0, createdAt: timestamp, updatedAt: timestamp }]
+    cards: [{ id: 'card_welcome', listId: 'list_todo', title: 'Welcome to your new board 👋', description: 'Drag this card between lists, or click it to add details.', labels: ['Getting started'], dueDate: '', checklist: [{ id: makeId('item'), text: 'Create your first card', done: false }], photos: [], position: 0, createdAt: timestamp, updatedAt: timestamp }]
   };
 }
 
@@ -28,6 +28,9 @@ class Store {
     this.state = this.read();
     if (this.state.version === 2) this.migrateV2();
     if (this.state.version !== 3) { this.state = initialState(); this.write(); }
+    let changed = false;
+    this.state.cards.forEach((card) => { if (!Array.isArray(card.photos)) { card.photos = []; changed = true; } });
+    if (changed) this.write();
   }
 
   read() {
@@ -71,10 +74,11 @@ class Store {
     this.getBoard(boardId);
     if (this.state.boards.length === 1) throw httpError('cannot delete the only board');
     const listIds = new Set(this.state.lists.filter((list) => list.boardId === boardId).map((list) => list.id));
+    const removedPhotos = this.state.cards.filter((card) => listIds.has(card.listId)).flatMap((card) => card.photos || []);
     this.state.cards = this.state.cards.filter((card) => !listIds.has(card.listId));
     this.state.lists = this.state.lists.filter((list) => list.boardId !== boardId);
     this.state.boards = this.state.boards.filter((board) => board.id !== boardId);
-    this.save();
+    this.save(); return removedPhotos;
   }
 
   listCards(query = {}) {
@@ -91,7 +95,7 @@ class Store {
     const list = this.state.lists.find((item) => item.id === input.listId);
     if (!list) throw httpError('valid listId is required');
     const timestamp = now();
-    const card = { id: makeId('card'), listId: list.id, title: input.title.trim(), description: String(input.description || ''), labels: this.cleanLabels(input.labels), dueDate: String(input.dueDate || ''), checklist: this.cleanChecklist(input.checklist), position: this.state.cards.filter((item) => item.listId === list.id).length, createdAt: timestamp, updatedAt: timestamp };
+    const card = { id: makeId('card'), listId: list.id, title: input.title.trim(), description: String(input.description || ''), labels: this.cleanLabels(input.labels), dueDate: String(input.dueDate || ''), checklist: this.cleanChecklist(input.checklist), photos: [], position: this.state.cards.filter((item) => item.listId === list.id).length, createdAt: timestamp, updatedAt: timestamp };
     this.state.cards.push(card); this.touchBoard(list.boardId); this.save(); return card;
   }
   updateCard(cardId, input) {
@@ -112,7 +116,17 @@ class Store {
     if (oldListId !== listId) this.reindex(oldListId);
     card.updatedAt = now(); this.touchBoard(targetList.boardId); this.save(); return card;
   }
-  deleteCard(cardId) { const card = this.getCard(cardId); const list = this.listFor(card.listId); this.state.cards = this.state.cards.filter((item) => item.id !== cardId); this.reindex(card.listId); this.touchBoard(list.boardId); this.save(); }
+  deleteCard(cardId) { const card = this.getCard(cardId); const list = this.listFor(card.listId); this.state.cards = this.state.cards.filter((item) => item.id !== cardId); this.reindex(card.listId); this.touchBoard(list.boardId); this.save(); return card; }
+  addPhoto(cardId, photo) {
+    const card = this.getCard(cardId);
+    const item = { id: makeId('photo'), name: String(photo.name || 'photo'), url: photo.url, mime: photo.mime, size: photo.size, createdAt: now() };
+    card.photos.push(item); card.updatedAt = now(); this.touchBoard(this.listFor(card.listId).boardId); this.save(); return item;
+  }
+  removePhoto(cardId, photoId) {
+    const card = this.getCard(cardId); const photo = card.photos.find((item) => item.id === photoId);
+    if (!photo) throw httpError('photo not found', 404);
+    card.photos = card.photos.filter((item) => item.id !== photoId); card.updatedAt = now(); this.touchBoard(this.listFor(card.listId).boardId); this.save(); return photo;
+  }
 
   createList(input) {
     if (!input.name?.trim()) throw httpError('name is required');

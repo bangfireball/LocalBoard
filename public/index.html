@@ -45,6 +45,7 @@
         <section class="details">
           <label>Description<textarea name="description" rows="6" placeholder="Add a more detailed description…"></textarea></label>
           <label>Checklist <small>One item per line. Start completed items with [x].</small><textarea name="checklist" rows="5" placeholder="Write tests&#10;[x] Create the issue"></textarea></label>
+          <section class="photo-section"><div class="section-heading"><strong>Photos</strong><label class="photo-upload">＋ Add photos<input id="photo-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple></label></div><div id="photo-gallery" class="photo-gallery"></div><small>JPEG, PNG, GIF, or WebP. Maximum 5 MB each.</small></section>
         </section>
         <aside>
           <label>List<select name="listId" id="list-select"></select></label>
@@ -54,6 +55,25 @@
         </aside>
       </div>
       <div class="modal-actions"><button type="button" class="muted-button" data-close>Cancel</button><button class="save-button" type="submit">Save</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="text-dialog" class="small-modal">
+    <form id="text-dialog-form">
+      <button type="button" class="close" data-text-cancel aria-label="Close">×</button>
+      <h2 id="text-dialog-title">Edit</h2>
+      <label><span id="text-dialog-label">Value</span><input id="text-dialog-input" maxlength="160" required></label>
+      <p id="text-dialog-help" class="dialog-help"></p>
+      <div class="modal-actions"><button type="button" class="muted-button" data-text-cancel>Cancel</button><button id="text-dialog-submit" class="save-button">Save</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="small-modal">
+    <form id="confirm-dialog-form">
+      <button type="button" class="close" data-confirm-cancel aria-label="Close">×</button>
+      <h2 id="confirm-dialog-title">Are you sure?</h2>
+      <p id="confirm-dialog-message" class="dialog-message"></p>
+      <div class="modal-actions"><button type="button" class="muted-button" data-confirm-cancel>Cancel</button><button id="confirm-dialog-submit" class="danger">Delete</button></div>
     </form>
   </dialog>
 

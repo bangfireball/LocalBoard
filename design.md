@@ -8,7 +8,7 @@ A deliberately simple, Trello-inspired personal Kanban app. The product supports
 
 - **The board is the product.** No dashboard, metrics, sidebar, sprints, priorities, estimates, or developer-specific fields.
 - **Fast capture.** Add a card directly at the bottom of any list. A title is the only required field.
-- **Details stay optional.** Cards may have a description, labels, due date, and checklist.
+- **Details stay optional.** Cards may have a description, labels, due date, checklist, and photo attachments.
 - **Direct manipulation.** Drag cards between lists. Click names to rename them.
 - **API parity.** Scripts and AI agents can do everything the browser can do through `/api/v1`.
 - **Easy to host.** One Node process or one Docker container, with an atomic JSON data file.
@@ -36,7 +36,8 @@ Boards
            ├── description
            ├── labels[]
            ├── dueDate
-           └── checklist[]
+           ├── checklist[]
+           └── photos[]
 ```
 
 ## Architecture
@@ -56,7 +57,9 @@ The static browser client and external clients use the same Express JSON API. `S
 - `GET /api/v1/export` — download a backup
 - `GET /api/openapi.json` — machine-readable contract
 
-An optional `KANBAN_API_KEY` protects API routes. The browser asks for it once per tab and keeps it in session storage.
+An optional `KANBAN_API_KEY` protects API routes. The browser asks for it once per tab and keeps it in session storage. Photos are stored under the data directory and served from randomized URLs.
+
+All confirmations and text entry use accessible native HTML dialogs; the interface does not rely on browser `alert`, `prompt`, or `confirm` boxes.
 
 ## Deployment and security
 

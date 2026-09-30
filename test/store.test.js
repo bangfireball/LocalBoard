@@ -49,3 +49,12 @@ test('creates independent boards with their own lists and cards', () => {
   assert.equal(store.boardState(board.id).cards[0].id, card.id);
   assert.equal(store.boardState('board_main').cards.some((item) => item.id === card.id), false);
 });
+
+test('adds and removes photo metadata on a card', () => {
+  const store = makeStore();
+  const card = store.createCard({ title: 'Screenshot', listId: 'list_todo' });
+  const photo = store.addPhoto(card.id, { name: 'screen.png', url: '/uploads/random.png', mime: 'image/png', size: 1234 });
+  assert.equal(store.getCard(card.id).photos[0].name, 'screen.png');
+  assert.equal(store.removePhoto(card.id, photo.id).url, '/uploads/random.png');
+  assert.equal(store.getCard(card.id).photos.length, 0);
+});

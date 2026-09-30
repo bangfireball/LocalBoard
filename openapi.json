@@ -1,6 +1,6 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "Board API", "version": "3.0.0", "description": "Manage multiple Kanban boards, lists, and cards. Send KANBAN_API_KEY as X-API-Key or a Bearer token when configured." },
+  "info": { "title": "Board API", "version": "3.1.0", "description": "Manage multiple Kanban boards, lists, and cards. Send KANBAN_API_KEY as X-API-Key or a Bearer token when configured." },
   "servers": [{ "url": "/api/v1" }],
   "components": {
     "securitySchemes": { "ApiKey": { "type": "apiKey", "in": "header", "name": "X-API-Key" }, "Bearer": { "type": "http", "scheme": "bearer" } },
@@ -19,6 +19,8 @@
     "/cards": { "get": { "summary": "Search or list cards", "parameters": [{ "in": "query", "name": "boardId", "schema": { "type": "string" } }, { "in": "query", "name": "q", "schema": { "type": "string" } }, { "in": "query", "name": "listId", "schema": { "type": "string" } }, { "in": "query", "name": "label", "schema": { "type": "string" } }], "responses": { "200": { "description": "Cards" } } }, "post": { "summary": "Create a card", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CardInput" } } } }, "responses": { "201": { "description": "Created card" } } } },
     "/cards/{id}": { "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }], "get": { "summary": "Get a card", "responses": { "200": { "description": "Card" } } }, "patch": { "summary": "Update a card", "responses": { "200": { "description": "Updated card" } } }, "delete": { "summary": "Delete a card", "responses": { "204": { "description": "Deleted" } } } },
     "/cards/{id}/move": { "post": { "summary": "Move or reorder a card within its board", "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Moved card" } } } },
+    "/cards/{id}/photos": { "post": { "summary": "Attach a photo to a card", "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": true, "content": { "multipart/form-data": { "schema": { "type": "object", "properties": { "photo": { "type": "string", "format": "binary" } } } } } }, "responses": { "201": { "description": "Attached photo" } } } },
+    "/cards/{cardId}/photos/{photoId}": { "delete": { "summary": "Remove a photo", "parameters": [{ "in": "path", "name": "cardId", "required": true, "schema": { "type": "string" } }, { "in": "path", "name": "photoId", "required": true, "schema": { "type": "string" } }], "responses": { "204": { "description": "Removed" } } } },
     "/export": { "get": { "summary": "Export every board", "responses": { "200": { "description": "JSON backup" } } } }
   }
 }

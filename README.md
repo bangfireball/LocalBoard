@@ -1,6 +1,6 @@
 # Board
 
-A simple, Trello-inspired personal Kanban app with multiple boards, lists, cards, drag and drop, labels, due dates, checklists, search, and a complete REST API.
+A simple, Trello-inspired personal Kanban app with multiple boards, lists, cards, drag and drop, photo attachments, labels, due dates, checklists, search, and a complete REST API.
 
 Click **Board** in the top-left—or press **B**—to open the board switcher and create another board.
 
@@ -45,6 +45,11 @@ curl -X POST http://localhost:3001/api/v1/cards \
   -H 'Content-Type: application/json' \
   -H 'X-API-Key: your-key' \
   -d '{"title":"Review pull request","listId":"list_todo","labels":["work"]}'
+
+# Attach a photo (JPEG, PNG, GIF, or WebP; maximum 5 MB)
+curl -X POST http://localhost:3001/api/v1/cards/CARD_ID/photos \
+  -H 'X-API-Key: your-key' \
+  -F 'photo=@screenshot.png'
 
 # Move a card
 curl -X POST http://localhost:3001/api/v1/cards/CARD_ID/move \

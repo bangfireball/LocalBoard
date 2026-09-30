@@ -1,6 +1,6 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "Board API", "version": "4.0.0", "description": "Manage multiple Kanban boards, lists, and cards. Send KANBAN_API_KEY as X-API-Key or a Bearer token when configured." },
+  "info": { "title": "LocalBoard API", "version": "4.0.1", "description": "Manage multiple Kanban boards, lists, and cards. Send KANBAN_API_KEY as X-API-Key or a Bearer token when configured." },
   "servers": [{ "url": "/api/v1" }],
   "components": {
     "securitySchemes": { "ApiKey": { "type": "apiKey", "in": "header", "name": "X-API-Key" }, "Bearer": { "type": "http", "scheme": "bearer" } },

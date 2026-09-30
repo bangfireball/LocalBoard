@@ -1,7 +1,7 @@
 services:
-  workboard:
+  localboard:
     build: .
-    container_name: simple-work-board
+    container_name: localboard
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -11,9 +11,9 @@ services:
       # Recommended: set this in a .env file before exposing the app.
       KANBAN_API_KEY: ${KANBAN_API_KEY:-}
     volumes:
-      - workboard_data:/app/data
+      - localboard_data:/app/data
     security_opt:
       - no-new-privileges:true
 
 volumes:
-  workboard_data:
+  localboard_data:

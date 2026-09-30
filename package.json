@@ -1,8 +1,8 @@
 {
-  "name": "simple-work-board",
-  "version": "4.0.0",
+  "name": "localboard",
+  "version": "4.0.1",
   "private": true,
-  "description": "A simple, self-hosted, API-first Kanban board.",
+  "description": "LocalBoard — a simple, self-hosted, API-first Kanban board.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

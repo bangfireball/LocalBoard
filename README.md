@@ -1,4 +1,4 @@
-# Board
+# LocalBoard
 
 A simple, Trello-inspired personal Kanban app with multiple boards, lists, cards, drag and drop, full-size photo viewing, per-board customizable colored labels, due dates, checklists, search, and a complete REST API.
 
@@ -27,7 +27,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Open <http://localhost:3000>. The Docker deployment persists data in the `workboard_data` volume.
+Open <http://localhost:3000>. The Docker deployment persists data in the `localboard_data` volume.
 
 ## API
 

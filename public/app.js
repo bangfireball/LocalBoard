@@ -39,6 +39,8 @@ function askConfirm({ title='Are you sure?', message, submit='Delete' }) {
     dialog.addEventListener('cancel',(event)=>{event.preventDefault();finish(false);},{signal:controller.signal}); dialog.showModal();
   });
 }
+$('#text-dialog').addEventListener('click',(event)=>{if(event.target===$('#text-dialog'))$('[data-text-cancel]',$('#text-dialog')).click();});
+$('#confirm-dialog').addEventListener('click',(event)=>{if(event.target===$('#confirm-dialog'))$('[data-confirm-cancel]',$('#confirm-dialog')).click();});
 
 async function load() {
   try {
@@ -48,7 +50,7 @@ async function load() {
     localStorage.setItem('current-board-id', currentBoardId);
     const data = await api(`/state?boardId=${encodeURIComponent(currentBoardId)}`); Object.assign(state, data);
     document.documentElement.style.setProperty('--board', state.board.background || '#0c66e4');
-    $('#board-title').textContent = state.board.name; document.title = state.board.name;
+    $('#board-title').textContent = state.board.name; document.title = `${state.board.name} | LocalBoard`;
     render(); populateLists(); renderBoardsSidebar();
   } catch (error) { toast(error.message, true); }
 }

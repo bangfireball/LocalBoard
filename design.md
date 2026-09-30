@@ -8,7 +8,8 @@ A deliberately simple, Trello-inspired personal Kanban app. The product supports
 
 - **The board is the product.** No dashboard, metrics, sidebar, sprints, priorities, estimates, or developer-specific fields.
 - **Fast capture.** Add a card directly at the bottom of any list. A title is the only required field.
-- **Details stay optional.** Cards may have a description, labels, due date, checklist, and photo attachments.
+- **Details stay optional.** Cards may have a description, labels, assignee, complete/recurring due date, reminder, checklist, files, links, and comments.
+- **History is durable.** Cards and lists archive instead of disappearing, while activity records creates, edits, moves, completions, comments, and attachments.
 - **Direct manipulation.** Drag cards between lists. Click names to rename them.
 - **API parity.** Scripts and AI agents can do everything the browser can do through `/api/v1`.
 - **Easy to host.** One Node process or one Docker container, with an atomic JSON data file.
@@ -37,9 +38,13 @@ Boards
            ├── title
            ├── description
            ├── labels[]
-           ├── dueDate
+           ├── dueAt / dueComplete / reminder / recurrence
+           ├── assignee
            ├── checklist[]
-           └── photos[]
+           ├── attachments[]
+           └── comments[]
+
+Activity[] records durable board and card events.
 ```
 
 ## Architecture
@@ -52,14 +57,17 @@ The static browser client and external clients use the same Express JSON API. `S
 - `GET/POST /api/v1/boards` — list or create boards
 - `GET/PATCH/DELETE /api/v1/boards/:id` — get, edit, or delete a board
 - `GET/POST /api/v1/lists` — list or create lists
-- `PATCH/DELETE /api/v1/lists/:id` — rename or remove an empty list
+- `PATCH /api/v1/lists/:id` and `POST .../archive|restore` — edit or archive lists
 - `GET/POST /api/v1/cards` — search/list or create cards
 - `GET/PATCH/DELETE /api/v1/cards/:id` — card operations
-- `POST /api/v1/cards/:id/move` — move/reorder a card
+- `POST /api/v1/cards/:id/move|archive|restore|complete-due` — workflow operations
+- `POST/DELETE /api/v1/cards/:id/attachments` — files and links
+- `GET/POST/PATCH/DELETE .../comments` — card discussion
+- `GET /api/v1/activity` — board or card audit history
 - `GET /api/v1/export` — download a backup
 - `GET /api/openapi.json` — machine-readable contract
 
-An optional `KANBAN_API_KEY` protects API routes. The browser asks for it once per tab and keeps it in session storage. Photos are stored under the data directory and served from randomized URLs.
+An optional `KANBAN_API_KEY` protects API routes. The browser asks for it once per tab and keeps it in session storage. Uploaded files are stored under the data directory with randomized URLs. In-app and browser-notification reminders run while LocalBoard is open; the due metadata remains available to external automation at all times.
 
 All confirmations and text entry use accessible native HTML dialogs; the interface does not rely on browser `alert`, `prompt`, or `confirm` boxes.
 

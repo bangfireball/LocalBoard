@@ -1,6 +1,6 @@
 {
   "name": "localboard",
-  "version": "4.0.1",
+  "version": "5.0.0",
   "private": true,
   "description": "LocalBoard — a simple, self-hosted, API-first Kanban board.",
   "main": "src/server.js",

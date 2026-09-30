@@ -1,6 +1,6 @@
 # LocalBoard
 
-A simple, Trello-inspired personal Kanban app with multiple boards, lists, cards, drag and drop, full-size photo viewing, per-board customizable colored labels, due dates, checklists, search, and a complete REST API.
+A self-hosted, Trello-inspired Kanban app with multiple boards, archiving, recurring due dates and reminders, comments, durable activity history, general file/link attachments, customizable labels, checklists, search, and a complete REST API.
 
 Click **Board** in the top-left—or press **B**—to open the board switcher and create another board. While editing a card, paste a clipboard image directly into the description field to attach it.
 
@@ -46,10 +46,19 @@ curl -X POST http://localhost:3001/api/v1/cards \
   -H 'X-API-Key: your-key' \
   -d '{"title":"Review pull request","listId":"list_todo","labels":["work"]}'
 
-# Attach a photo (JPEG, PNG, GIF, or WebP; maximum 5 MB)
-curl -X POST http://localhost:3001/api/v1/cards/CARD_ID/photos \
+# Attach any file (maximum 25 MB)
+curl -X POST http://localhost:3001/api/v1/cards/CARD_ID/attachments \
   -H 'X-API-Key: your-key' \
-  -F 'photo=@screenshot.png'
+  -F 'file=@specification.pdf'
+
+# Archive a card without losing its history
+curl -X POST -H 'X-API-Key: your-key' \
+  http://localhost:3001/api/v1/cards/CARD_ID/archive
+
+# Add a comment
+curl -X POST http://localhost:3001/api/v1/cards/CARD_ID/comments \
+  -H 'Content-Type: application/json' -H 'X-API-Key: your-key' \
+  -d '{"author":"Alex","text":"Ready for review"}'
 
 # Move a card
 curl -X POST http://localhost:3001/api/v1/cards/CARD_ID/move \

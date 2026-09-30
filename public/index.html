@@ -31,6 +31,7 @@
       <h1 id="board-title" title="Click to rename">My Work Board</h1>
       <span class="divider"></span>
       <span class="board-type">Personal board</span>
+      <button id="open-archive" class="bar-button" title="View archived items">Archive</button>
       <button id="change-background" class="bar-button" title="Change board color">◐</button>
     </div>
     <div id="board" class="board" aria-label="Kanban board"></div>
@@ -45,17 +46,43 @@
         <section class="details">
           <label>Description <small>Type notes or paste an image from your clipboard.</small><textarea name="description" rows="6" placeholder="Add a more detailed description… Paste screenshots here with Ctrl+V."></textarea></label>
           <label>Checklist <small>One item per line. Start completed items with [x].</small><textarea name="checklist" rows="5" placeholder="Write tests&#10;[x] Create the issue"></textarea></label>
-          <section class="photo-section"><div class="section-heading"><strong>Photos</strong><label class="photo-upload">＋ Add photos<input id="photo-input" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple></label></div><div id="photo-gallery" class="photo-gallery"></div><small>JPEG, PNG, GIF, or WebP. Maximum 5 MB each.</small></section>
+          <section class="attachment-section"><div class="section-heading"><strong>Attachments</strong><div class="attachment-actions"><label class="photo-upload">＋ Add files<input id="attachment-input" type="file" multiple></label><button type="button" class="muted-button" id="add-link">＋ Add link</button></div></div><div id="attachment-list" class="attachment-list"></div><small>Files up to 25 MB. Images can also be pasted into the description.</small></section>
+          <section class="comments-section"><strong>Comments</strong><div id="comment-form" class="comment-form"><textarea id="comment-text" rows="2" placeholder="Write a comment…"></textarea><div><input id="comment-author" maxlength="60" placeholder="Your name"><button type="button" id="add-comment" class="save-button">Comment</button></div></div><div id="comments-list" class="comments-list"></div></section>
+          <section class="activity-section"><strong>Activity</strong><div id="card-activity" class="card-activity"></div></section>
         </section>
         <aside>
           <label>List<select name="listId" id="list-select"></select></label>
           <div class="labels-control"><span>Labels</span><div id="selected-labels" class="selected-labels"></div><button type="button" class="muted-button" id="edit-labels">Edit labels</button></div>
-          <label>Due date<input name="dueDate" type="date"></label>
-          <button type="button" class="danger" id="delete-card">Delete card</button>
+          <label>Assigned to<input name="assignee" placeholder="Name"></label>
+          <label>Due date and time<input name="dueAt" type="datetime-local"></label>
+          <label>Reminder<select name="reminderMinutes"><option value="">None</option><option value="0">At due time</option><option value="10">10 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></label>
+          <label>Repeat<select name="recurrence"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label>
+          <label class="due-complete"><input name="dueComplete" type="checkbox"> Due date complete</label>
+          <button type="button" class="muted-button" id="archive-card">Archive card</button>
         </aside>
       </div>
       <div class="modal-actions"><button type="button" class="muted-button" data-close>Cancel</button><button class="save-button" type="submit">Save</button></div>
     </form>
+  </dialog>
+
+  <dialog id="list-dialog" class="small-modal">
+    <form id="list-dialog-form">
+      <button type="button" class="close" data-close-list aria-label="Close">×</button>
+      <h2>List actions</h2>
+      <input type="hidden" name="listId">
+      <label>List name<input name="name" maxlength="80" required></label>
+      <div class="modal-actions"><button type="button" class="danger" id="archive-list">Archive</button><span></span><button type="button" class="muted-button" data-close-list>Cancel</button><button class="save-button">Save</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="archive-dialog" class="archive-modal">
+    <div class="archive-modal-content">
+      <button type="button" class="close" data-close-archive aria-label="Close">×</button>
+      <h2>Archived items</h2>
+      <p>Restore cards and lists without losing their history.</p>
+      <h3>Cards</h3><div id="archived-cards" class="archive-list"></div>
+      <h3>Lists</h3><div id="archived-lists" class="archive-list"></div>
+    </div>
   </dialog>
 
   <dialog id="labels-dialog" class="labels-modal">

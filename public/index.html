@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1120">
+  <title>Moodle Workboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">M</span><div><strong>Moodle</strong><small>WORKBOARD</small></div></div>
+    <nav>
+      <button class="nav-item active" data-view="board"><span>▦</span> Board</button>
+      <button class="nav-item" data-view="activity"><span>↻</span> Activity</button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="shortcut"><span>New task</span><kbd>N</kbd></div>
+      <a href="/api/openapi.json" target="_blank">API specification <span>↗</span></a>
+      <div class="connection"><i></i> Local &amp; synced</div>
+    </div>
+  </aside>
+
+  <main>
+    <header>
+      <div><p class="eyebrow">DEVELOPMENT / CURRENT SPRINT</p><h1 id="board-name">Moodle Plugin Workboard</h1></div>
+      <div class="header-actions">
+        <button class="icon-button" id="theme-toggle" title="Toggle theme">☾</button>
+        <button class="primary" id="new-card">＋ New task</button>
+      </div>
+    </header>
+
+    <section class="metrics" id="metrics">
+      <div><span>ACTIVE TASKS</span><strong id="metric-active">—</strong></div>
+      <div><span>IN PROGRESS</span><strong id="metric-progress">—</strong></div>
+      <div><span>OVERDUE</span><strong id="metric-overdue">—</strong></div>
+      <div><span>ESTIMATED HOURS</span><strong id="metric-hours">—</strong></div>
+    </section>
+
+    <section class="toolbar" id="board-toolbar">
+      <label class="search"><span>⌕</span><input id="search" type="search" placeholder="Search tasks, plugins, tags…"></label>
+      <select id="priority-filter" aria-label="Filter priority"><option value="">All priorities</option><option>urgent</option><option>high</option><option>medium</option><option>low</option></select>
+      <select id="type-filter" aria-label="Filter type"><option value="">All types</option><option>feature</option><option>bug</option><option>maintenance</option><option>research</option><option>release</option></select>
+      <button class="secondary" id="clear-filters">Clear</button>
+      <button class="secondary add-column" id="add-column">＋ Column</button>
+    </section>
+
+    <section id="board" class="board" aria-label="Kanban board"></section>
+    <section id="activity-view" class="activity-view hidden"><h2>Recent activity</h2><div id="activity-list"></div></section>
+  </main>
+
+  <dialog id="card-dialog">
+    <form id="card-form">
+      <div class="dialog-head"><div><p class="eyebrow" id="dialog-kicker">NEW WORK ITEM</p><h2 id="dialog-title">Create task</h2></div><button type="button" class="close" data-close>×</button></div>
+      <input type="hidden" name="id">
+      <div class="form-grid">
+        <label class="full">Title<input name="title" required maxlength="160" placeholder="What needs to be done?"></label>
+        <label class="full">Description<textarea name="description" rows="4" placeholder="Context, acceptance criteria, technical notes…"></textarea></label>
+        <label>Status<select name="columnId" id="column-select"></select></label>
+        <label>Type<select name="type"><option>feature</option><option>bug</option><option>maintenance</option><option>research</option><option>release</option></select></label>
+        <label>Priority<select name="priority"><option>low</option><option selected>medium</option><option>high</option><option>urgent</option></select></label>
+        <label>Estimate (hours)<input name="estimate" type="number" min="0" step="0.5" placeholder="0"></label>
+        <label>Plugin component<input name="pluginName" placeholder="mod_example"></label>
+        <label>Moodle version<input name="moodleVersion" placeholder="4.5"></label>
+        <label>Assignee<input name="assignee" placeholder="Name"></label>
+        <label>Due date<input name="dueDate" type="date"></label>
+        <label class="full">Tags<input name="tags" placeholder="backend, privacy-api, release"></label>
+        <label class="full">Tracker / repository URL<input name="trackerUrl" type="url" placeholder="https://…"></label>
+        <label class="full">Checklist <small>(one item per line; prefix completed items with [x])</small><textarea name="checklist" rows="3" placeholder="Add PHPUnit tests&#10;[x] Create upgrade step"></textarea></label>
+      </div>
+      <div class="dialog-actions"><button type="button" class="danger hidden" id="delete-card">Delete</button><span></span><button type="button" class="secondary" data-close>Cancel</button><button class="primary" type="submit">Save task</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="column-dialog" class="small-dialog">
+    <form id="column-form"><div class="dialog-head"><h2>Add column</h2><button type="button" class="close" data-close-column>×</button></div>
+      <label>Name<input name="name" required placeholder="e.g. Blocked"></label>
+      <label>WIP limit<input name="wipLimit" type="number" min="1" placeholder="Optional"></label>
+      <label>Color<input name="color" type="color" value="#8b5cf6"></label>
+      <div class="dialog-actions"><span></span><button type="button" class="secondary" data-close-column>Cancel</button><button class="primary">Add column</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status"></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

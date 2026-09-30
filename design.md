@@ -2,7 +2,7 @@
 
 ## Direction
 
-A deliberately simple, Trello-inspired personal Kanban board. The product uses familiar lists and cards, quick inline creation, drag-and-drop movement, and a lightweight detail dialog. It borrows the interaction model—not Trello branding, assets, or exact visual design.
+A deliberately simple, Trello-inspired personal Kanban app. The product supports multiple independent boards with familiar lists and cards, quick inline creation, drag-and-drop movement, and a lightweight detail dialog. It borrows the interaction model—not Trello branding, assets, or exact visual design.
 
 ## Principles
 
@@ -15,7 +15,8 @@ A deliberately simple, Trello-inspired personal Kanban board. The product uses f
 
 ## Interface
 
-- A compact top bar contains the product name, search, and API link.
+- A compact top bar contains the Board switcher, search, and API link.
+- Clicking **Board** or pressing **B** opens a sidebar for switching and creating boards.
 - The board title and background controls sit above horizontally scrolling lists.
 - Lists use a neutral surface over a colored board background.
 - Cards show only useful signals: label colors, due date, description indicator, and checklist progress.
@@ -25,10 +26,11 @@ A deliberately simple, Trello-inspired personal Kanban board. The product uses f
 ## Data model
 
 ```text
-Board
- ├── name
- ├── background
- └── Lists (ordered)
+Boards
+ └── Board
+      ├── name
+      ├── background
+      └── Lists (ordered)
       └── Cards (ordered)
            ├── title
            ├── description
@@ -43,8 +45,9 @@ The static browser client and external clients use the same Express JSON API. `S
 
 ## API
 
-- `GET /api/v1/state` — complete board state
-- `PATCH /api/v1/board` — rename or recolor the board
+- `GET /api/v1/state?boardId=...` — one board's complete state
+- `GET/POST /api/v1/boards` — list or create boards
+- `GET/PATCH/DELETE /api/v1/boards/:id` — get, edit, or delete a board
 - `GET/POST /api/v1/lists` — list or create lists
 - `PATCH/DELETE /api/v1/lists/:id` — rename or remove an empty list
 - `GET/POST /api/v1/cards` — search/list or create cards

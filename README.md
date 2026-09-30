@@ -1,6 +1,8 @@
 # Board
 
-A simple, Trello-inspired personal Kanban board with lists, cards, drag and drop, labels, due dates, checklists, search, and a complete REST API.
+A simple, Trello-inspired personal Kanban app with multiple boards, lists, cards, drag and drop, labels, due dates, checklists, search, and a complete REST API.
+
+Click **Board** in the top-left—or press **B**—to open the board switcher and create another board.
 
 ## Run directly with Node
 
@@ -32,6 +34,12 @@ Open <http://localhost:3000>. The Docker deployment persists data in the `workbo
 The OpenAPI contract is available at `/api/openapi.json`.
 
 ```bash
+# Create a board
+curl -X POST http://localhost:3001/api/v1/boards \
+  -H 'Content-Type: application/json' \
+  -H 'X-API-Key: your-key' \
+  -d '{"name":"Client work"}'
+
 # Create a card
 curl -X POST http://localhost:3001/api/v1/cards \
   -H 'Content-Type: application/json' \

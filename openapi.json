@@ -1,22 +1,24 @@
 {
   "openapi": "3.1.0",
-  "info": { "title": "Board API", "version": "2.0.0", "description": "A simple API for lists and cards. Send KANBAN_API_KEY as X-API-Key or a Bearer token when configured." },
+  "info": { "title": "Board API", "version": "3.0.0", "description": "Manage multiple Kanban boards, lists, and cards. Send KANBAN_API_KEY as X-API-Key or a Bearer token when configured." },
   "servers": [{ "url": "/api/v1" }],
   "components": {
     "securitySchemes": { "ApiKey": { "type": "apiKey", "in": "header", "name": "X-API-Key" }, "Bearer": { "type": "http", "scheme": "bearer" } },
     "schemas": {
+      "BoardInput": { "type": "object", "properties": { "name": { "type": "string" }, "background": { "type": "string" } } },
       "CardInput": { "type": "object", "properties": { "title": { "type": "string" }, "listId": { "type": "string" }, "description": { "type": "string" }, "labels": { "type": "array", "items": { "type": "string" } }, "dueDate": { "type": "string", "format": "date" }, "checklist": { "type": "array", "items": { "type": "object", "properties": { "text": { "type": "string" }, "done": { "type": "boolean" } } } } } }
     }
   },
   "security": [{ "ApiKey": [] }, { "Bearer": [] }],
   "paths": {
-    "/state": { "get": { "summary": "Get the board, lists, and cards", "responses": { "200": { "description": "Complete board state" } } } },
-    "/board": { "get": { "summary": "Get board settings", "responses": { "200": { "description": "Board" } } }, "patch": { "summary": "Update board name or background", "responses": { "200": { "description": "Updated board" } } } },
-    "/lists": { "get": { "summary": "List lists", "responses": { "200": { "description": "Lists" } } }, "post": { "summary": "Create a list", "responses": { "201": { "description": "Created list" } } } },
+    "/state": { "get": { "summary": "Get one board with its lists and cards", "parameters": [{ "in": "query", "name": "boardId", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Board state" } } } },
+    "/boards": { "get": { "summary": "List all boards", "responses": { "200": { "description": "Boards" } } }, "post": { "summary": "Create a board with three starter lists", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BoardInput" } } } }, "responses": { "201": { "description": "Created board" } } } },
+    "/boards/{id}": { "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }], "get": { "summary": "Get a board", "responses": { "200": { "description": "Board" } } }, "patch": { "summary": "Rename or recolor a board", "responses": { "200": { "description": "Updated board" } } }, "delete": { "summary": "Delete a board and its contents", "responses": { "204": { "description": "Deleted" } } } },
+    "/lists": { "get": { "summary": "List a board's lists", "parameters": [{ "in": "query", "name": "boardId", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Lists" } } }, "post": { "summary": "Create a list; name and boardId are required", "responses": { "201": { "description": "Created list" } } } },
     "/lists/{id}": { "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }], "patch": { "summary": "Rename a list", "responses": { "200": { "description": "Updated list" } } }, "delete": { "summary": "Delete an empty list", "responses": { "204": { "description": "Deleted" } } } },
-    "/cards": { "get": { "summary": "Search or list cards", "parameters": [{ "in": "query", "name": "q", "schema": { "type": "string" } }, { "in": "query", "name": "listId", "schema": { "type": "string" } }, { "in": "query", "name": "label", "schema": { "type": "string" } }], "responses": { "200": { "description": "Cards" } } }, "post": { "summary": "Create a card", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CardInput" } } } }, "responses": { "201": { "description": "Created card" } } } },
+    "/cards": { "get": { "summary": "Search or list cards", "parameters": [{ "in": "query", "name": "boardId", "schema": { "type": "string" } }, { "in": "query", "name": "q", "schema": { "type": "string" } }, { "in": "query", "name": "listId", "schema": { "type": "string" } }, { "in": "query", "name": "label", "schema": { "type": "string" } }], "responses": { "200": { "description": "Cards" } } }, "post": { "summary": "Create a card", "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CardInput" } } } }, "responses": { "201": { "description": "Created card" } } } },
     "/cards/{id}": { "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }], "get": { "summary": "Get a card", "responses": { "200": { "description": "Card" } } }, "patch": { "summary": "Update a card", "responses": { "200": { "description": "Updated card" } } }, "delete": { "summary": "Delete a card", "responses": { "204": { "description": "Deleted" } } } },
-    "/cards/{id}/move": { "post": { "summary": "Move or reorder a card", "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }], "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["listId"], "properties": { "listId": { "type": "string" }, "position": { "type": "integer" } } } } } }, "responses": { "200": { "description": "Moved card" } } } },
-    "/export": { "get": { "summary": "Export all board data", "responses": { "200": { "description": "JSON backup" } } } }
+    "/cards/{id}/move": { "post": { "summary": "Move or reorder a card within its board", "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "Moved card" } } } },
+    "/export": { "get": { "summary": "Export every board", "responses": { "200": { "description": "JSON backup" } } } }
   }
 }

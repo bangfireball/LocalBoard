@@ -1,4 +1,5 @@
-const state = { board: null, lists: [], cards: [], search: '' };
+const state = { boards: [], board: null, lists: [], cards: [], search: '' };
+let currentBoardId = localStorage.getItem('current-board-id');
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]);
@@ -20,10 +21,14 @@ function toast(message, error = false) {
 
 async function load() {
   try {
-    const data = await api('/state'); Object.assign(state, data);
+    state.boards = await api('/boards');
+    if (!state.boards.some((board) => board.id === currentBoardId)) currentBoardId = state.boards[0]?.id;
+    if (!currentBoardId) throw new Error('No boards available');
+    localStorage.setItem('current-board-id', currentBoardId);
+    const data = await api(`/state?boardId=${encodeURIComponent(currentBoardId)}`); Object.assign(state, data);
     document.documentElement.style.setProperty('--board', state.board.background || '#0c66e4');
     $('#board-title').textContent = state.board.name; document.title = state.board.name;
-    render(); populateLists();
+    render(); populateLists(); renderBoardsSidebar();
   } catch (error) { toast(error.message, true); }
 }
 
@@ -90,7 +95,7 @@ function showCardComposer(list) {
 function showListComposer() {
   $('.add-list').outerHTML = '<form class="new-list"><input maxlength="80" placeholder="Enter list title…" required><div class="composer-actions"><button class="add-button">Add list</button><button type="button" class="cancel-composer">×</button></div></form>';
   const form = $('.new-list'); $('input',form).focus(); $('.cancel-composer',form).addEventListener('click',render);
-  form.addEventListener('submit', async (event) => { event.preventDefault(); try { await api('/lists',{method:'POST',body:JSON.stringify({name:$('input',form).value})}); await load(); } catch(error){toast(error.message,true);} });
+  form.addEventListener('submit', async (event) => { event.preventDefault(); try { await api('/lists',{method:'POST',body:JSON.stringify({name:$('input',form).value,boardId:currentBoardId})}); await load(); } catch(error){toast(error.message,true);} });
 }
 async function listActions(listId) {
   const list = state.lists.find((item) => item.id === listId);
@@ -113,7 +118,17 @@ $('#card-form').addEventListener('submit', async (event) => { event.preventDefau
 $('#delete-card').addEventListener('click',async()=>{const id=$('#card-form').elements.id.value;if(!confirm('Delete this card?'))return;try{await api(`/cards/${id}`,{method:'DELETE'});$('#card-dialog').close();await load();toast('Card deleted');}catch(error){toast(error.message,true);}});
 $$('[data-close]').forEach((button)=>button.addEventListener('click',()=>$('#card-dialog').close()));
 $('#search').addEventListener('input',(event)=>{state.search=event.target.value;render();});
-$('#board-title').addEventListener('click',async()=>{const name=prompt('Board name:',state.board.name);if(!name||name===state.board.name)return;try{await api('/board',{method:'PATCH',body:JSON.stringify({name})});await load();}catch(error){toast(error.message,true);}});
-$('#change-background').addEventListener('click',async()=>{const palette=['#0c66e4','#0e7a5f','#7e57c2','#c9372c','#c25100','#455570'];const next=palette[(palette.indexOf(state.board.background)+1)%palette.length];try{await api('/board',{method:'PATCH',body:JSON.stringify({background:next})});await load();}catch(error){toast(error.message,true);}});
-document.addEventListener('keydown',(event)=>{if(event.key==='Escape'&&$('#card-dialog').open)$('#card-dialog').close();});
+$('#board-title').addEventListener('click',async()=>{const name=prompt('Board name:',state.board.name);if(!name||name===state.board.name)return;try{await api(`/boards/${currentBoardId}`,{method:'PATCH',body:JSON.stringify({name})});await load();}catch(error){toast(error.message,true);}});
+$('#change-background').addEventListener('click',async()=>{const palette=['#0c66e4','#0e7a5f','#7e57c2','#c9372c','#c25100','#455570'];const next=palette[(palette.indexOf(state.board.background)+1)%palette.length];try{await api(`/boards/${currentBoardId}`,{method:'PATCH',body:JSON.stringify({background:next})});await load();}catch(error){toast(error.message,true);}});
+
+function renderBoardsSidebar(){
+  $('#boards-list').innerHTML=state.boards.map((board)=>`<button class="board-option ${board.id===currentBoardId?'active':''}" data-board-id="${board.id}"><span class="board-swatch" style="background:${board.background}"></span><strong>${escapeHtml(board.name)}</strong>${board.id===currentBoardId?'<small>Current</small>':''}</button>`).join('');
+  $$('.board-option').forEach((button)=>button.addEventListener('click',async()=>{currentBoardId=button.dataset.boardId;localStorage.setItem('current-board-id',currentBoardId);closeBoardsSidebar();await load();}));
+}
+function openBoardsSidebar(){ $('#boards-sidebar').classList.add('open'); $('#boards-sidebar').setAttribute('aria-hidden','false'); $('#sidebar-backdrop').hidden=false; }
+function closeBoardsSidebar(){ $('#boards-sidebar').classList.remove('open'); $('#boards-sidebar').setAttribute('aria-hidden','true'); $('#sidebar-backdrop').hidden=true; }
+function toggleBoardsSidebar(){ $('#boards-sidebar').classList.contains('open')?closeBoardsSidebar():openBoardsSidebar(); }
+$('#boards-button').addEventListener('click',toggleBoardsSidebar); $('#close-sidebar').addEventListener('click',closeBoardsSidebar); $('#sidebar-backdrop').addEventListener('click',closeBoardsSidebar);
+$('#new-board-form').addEventListener('submit',async(event)=>{event.preventDefault();const input=event.currentTarget.elements.name;try{const board=await api('/boards',{method:'POST',body:JSON.stringify({name:input.value})});currentBoardId=board.id;localStorage.setItem('current-board-id',currentBoardId);input.value='';closeBoardsSidebar();await load();toast('Board created');}catch(error){toast(error.message,true);}});
+document.addEventListener('keydown',(event)=>{if(event.key==='Escape'){if($('#card-dialog').open)$('#card-dialog').close();else closeBoardsSidebar();}if(event.key.toLowerCase()==='b'&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)&&!$('#card-dialog').open){event.preventDefault();toggleBoardsSidebar();}});
 load();

@@ -9,10 +9,22 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="logo" href="/" aria-label="Board home"><span>▦</span> Board</a>
+    <button class="logo" id="boards-button" aria-label="Open boards" title="Boards (B)"><span>▦</span> Board</button>
     <label class="search"><span>⌕</span><input id="search" type="search" placeholder="Search"></label>
     <a class="api-link" href="/api/openapi.json" target="_blank">API</a>
   </header>
+
+  <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+  <aside id="boards-sidebar" class="boards-sidebar" aria-hidden="true">
+    <header><h2>Your boards</h2><button id="close-sidebar" aria-label="Close boards">×</button></header>
+    <div id="boards-list" class="boards-list"></div>
+    <form id="new-board-form" class="new-board-form">
+      <label for="new-board-name">Create a board</label>
+      <input id="new-board-name" name="name" maxlength="80" placeholder="Board title" required>
+      <button type="submit">Create board</button>
+    </form>
+    <p class="sidebar-hint"><kbd>B</kbd> opens and closes this menu</p>
+  </aside>
 
   <main>
     <div class="board-bar">

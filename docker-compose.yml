@@ -4,9 +4,10 @@ services:
     container_name: localboard
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
-      PORT: 3000
+      PORT: 3001
+      HOST: 0.0.0.0
       DATA_FILE: /app/data/board.json
       # Recommended: set this in a .env file before exposing the app.
       KANBAN_API_KEY: ${KANBAN_API_KEY:-}

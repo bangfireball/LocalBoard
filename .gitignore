@@ -1,6 +1,9 @@
 node_modules/
 data/
+migration-data/
+logs/
 .env
+localboard-data.tar.gz
 *.log
 .DS_Store
 coverage/

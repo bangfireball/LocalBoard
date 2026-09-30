@@ -27,7 +27,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Open <http://localhost:3000>. The Docker deployment persists data in the `localboard_data` volume.
+Open <http://localhost:3001>. The Docker deployment persists data in the `localboard_data` volume.
 
 ## API
 
@@ -79,7 +79,8 @@ If `KANBAN_API_KEY` is empty, authentication is disabled. When enabled, the brow
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PORT` | `3000` | HTTP port |
+| `PORT` | `3001` | HTTP port |
+| `HOST` | `0.0.0.0` | HTTP bind address |
 | `DATA_FILE` | `./data/board.json` | JSON data file |
 | `KANBAN_API_KEY` | empty | Optional API key |
 

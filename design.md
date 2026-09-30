@@ -73,4 +73,8 @@ All confirmations and text entry use accessible native HTML dialogs; the interfa
 
 ## Deployment and security
 
-The app binds to `0.0.0.0`, can run directly under Node, and includes Docker support. Use a reverse proxy with TLS outside a trusted LAN. The container runs unprivileged and persists `/app/data` in a named volume.
+LocalBoard is intended to run as a Docker container on a homelab server and be reachable by other devices on the local network. It binds to `0.0.0.0:3001`; the host must publish TCP port `3001` and allow it through the LAN-facing firewall. The container runs as an unprivileged user and persists `/app/data` in the `localboard_data` named volume.
+
+Set a strong `KANBAN_API_KEY` before exposing the service to the network. Keep the server and port restricted to trusted LAN or VPN clients. If LocalBoard is exposed beyond the trusted LAN, place it behind an authenticated reverse proxy with TLS rather than publishing the container directly. Back up the named volume—or regularly download `/api/v1/export`—because application data and uploaded files live there. The existing host `data/board.json` is not imported into the Docker volume automatically.
+
+The same application can also run directly as a single Node process for development, but the homelab deployment target is Docker Compose.

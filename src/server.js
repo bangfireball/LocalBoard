@@ -6,7 +6,8 @@ const multer = require('multer');
 const { Store } = require('./store');
 
 const app = express();
-const port = Number(process.env.PORT) || 3000;
+const port = Number(process.env.PORT) || 3001;
+const host = process.env.HOST || '0.0.0.0';
 const root = path.resolve(__dirname, '..');
 const dataFile = process.env.DATA_FILE || path.join(root, 'data', 'board.json');
 const uploadDirectory = path.join(path.dirname(dataFile), 'uploads');
@@ -85,5 +86,5 @@ app.get('/api/openapi.json', (_req, res) => res.sendFile(path.join(root, 'openap
 app.use(express.static(path.join(root, 'public'), { extensions: ['html'] }));
 app.use((error, req, res, _next) => { console.error(`${req.method} ${req.path}:`, error.message); if (error.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'too_large', message: 'Files must be 25 MB or smaller.' }); res.status(error.status || 500).json({ error: error.status === 404 ? 'not_found' : error.status === 400 ? 'bad_request' : 'internal_error', message: error.message }); });
 
-if (require.main === module) app.listen(port, '0.0.0.0', () => console.log(`LocalBoard listening on http://0.0.0.0:${port}`));
+if (require.main === module) app.listen(port, host, () => console.log(`LocalBoard listening on http://${host}:${port}`));
 module.exports = app;

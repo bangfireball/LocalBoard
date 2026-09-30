@@ -20,7 +20,7 @@ A deliberately simple, Trello-inspired personal Kanban app. The product supports
 - The board title and background controls sit above horizontally scrolling lists.
 - Lists use a neutral surface over a colored board background.
 - Cards show only useful signals: label colors, due date, description indicator, and checklist progress.
-- Card details open in a focused dialog.
+- Card details open in a focused dialog; clipboard images pasted into the description are uploaded directly to the card.
 - Adding cards and lists happens inline, without navigating away.
 
 ## Data model

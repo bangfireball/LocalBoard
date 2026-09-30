@@ -31,7 +31,7 @@ function authenticate(req, res, next) {
   next();
 }
 
-app.get('/health', (_req, res) => res.json({ status: 'ok', version: '3.1.0', time: new Date().toISOString() }));
+app.get('/health', (_req, res) => res.json({ status: 'ok', version: '3.1.1', time: new Date().toISOString() }));
 app.use('/uploads', express.static(uploadDirectory, { immutable: true, maxAge: '30d' }));
 app.use('/api/v1', authenticate);
 app.get('/api/v1/state', (req, res) => res.json(store.boardState(req.query.boardId)));

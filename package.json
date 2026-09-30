@@ -1,6 +1,6 @@
 {
   "name": "simple-work-board",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "private": true,
   "description": "A simple, self-hosted, API-first Kanban board.",
   "main": "src/server.js",

@@ -146,7 +146,22 @@ function cardFromForm(form) {
 
 $('#card-form').addEventListener('submit', async (event) => { event.preventDefault(); const form=event.currentTarget; const id=form.elements.id.value; const data=cardFromForm(form); const original=state.cards.find((card)=>card.id===id); try { await api(`/cards/${id}`,{method:'PATCH',body:JSON.stringify(data)}); if(original.listId!==data.listId) await api(`/cards/${id}/move`,{method:'POST',body:JSON.stringify({listId:data.listId,position:999})}); $('#card-dialog').close(); await load(); toast('Card saved'); } catch(error){toast(error.message,true);} });
 $('#delete-card').addEventListener('click',async()=>{const id=$('#card-form').elements.id.value;if(!await askConfirm({title:'Delete card?',message:'This card and its photos will be permanently deleted.'}))return;try{await api(`/cards/${id}`,{method:'DELETE'});$('#card-dialog').close();await load();toast('Card deleted');}catch(error){toast(error.message,true);}});
-$('#photo-input').addEventListener('change',async(event)=>{const id=$('#card-form').elements.id.value;const card=state.cards.find((item)=>item.id===id);const files=[...event.target.files];if(!card||!files.length)return;$('#photo-gallery').classList.add('uploading');try{for(const file of files){const body=new FormData();body.append('photo',file);const photo=await api(`/cards/${id}/photos`,{method:'POST',body});card.photos.push(photo);}renderPhotos(card);render();toast(files.length===1?'Photo added':`${files.length} photos added`);}catch(error){toast(error.message,true);}finally{$('#photo-gallery').classList.remove('uploading');event.target.value='';}});
+async function uploadPhotos(files, pasted=false){
+  const id=$('#card-form').elements.id.value, card=state.cards.find((item)=>item.id===id);
+  if(!card||!files.length)return;
+  $('#photo-gallery').classList.add('uploading');
+  try{
+    for(const file of files){const body=new FormData();body.append('photo',file,file.name||`pasted-image-${Date.now()}.png`);const photo=await api(`/cards/${id}/photos`,{method:'POST',body});card.photos.push(photo);}
+    renderPhotos(card);render();toast(files.length===1?(pasted?'Pasted image added':'Photo added'):`${files.length} photos added`);
+  }catch(error){toast(error.message,true);}finally{$('#photo-gallery').classList.remove('uploading');}
+}
+$('#photo-input').addEventListener('change',async(event)=>{await uploadPhotos([...event.target.files]);event.target.value='';});
+$('#card-form').elements.description.addEventListener('paste',async(event)=>{
+  const files=[...(event.clipboardData?.items||[])].filter((item)=>item.kind==='file'&&item.type.startsWith('image/')).map((item)=>item.getAsFile()).filter(Boolean);
+  if(!files.length)return;
+  event.preventDefault();
+  await uploadPhotos(files,true);
+});
 $$('[data-close]').forEach((button)=>button.addEventListener('click',()=>$('#card-dialog').close()));
 $('#search').addEventListener('input',(event)=>{state.search=event.target.value;render();});
 $('#board-title').addEventListener('click',async()=>{const name=await askText({title:'Rename board',label:'Board name',value:state.board.name});if(!name||name===state.board.name)return;try{await api(`/boards/${currentBoardId}`,{method:'PATCH',body:JSON.stringify({name})});await load();}catch(error){toast(error.message,true);}});

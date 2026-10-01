@@ -18,11 +18,13 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 }
 });
 const imageTypes = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
-const removeUploadedFile = (url) => { if (url?.startsWith('/uploads/')) fs.rm(path.join(uploadDirectory, path.basename(url)), { force: true }, () => {}); };
+const removeUploadedFile = (url) => { if (url?.startsWith('/uploads/')) { try { fs.rmSync(path.join(uploadDirectory, path.basename(url)), { force: true }); } catch { /* Cleanup must not mask the original request error. */ } } };
 
 app.disable('x-powered-by');
-app.use(express.json({ limit: '1mb' }));
-app.use((_req, res, next) => { res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY'); res.setHeader('Referrer-Policy', 'same-origin'); next(); });
+app.use((_req, res, next) => {
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+  res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY'); res.setHeader('Referrer-Policy', 'same-origin'); next();
+});
 function authenticate(req, res, next) {
   const expected = process.env.KANBAN_API_KEY;
   if (!expected) return next();
@@ -31,6 +33,8 @@ function authenticate(req, res, next) {
   next();
 }
 
+app.post('/api/v1/import/trello', authenticate, express.json({ limit: '5mb', type: 'application/json' }), (req, res) => res.status(201).json(store.importTrelloBoard(req.body)));
+app.use(express.json({ limit: '1mb' }));
 app.get('/health', (_req, res) => res.json({ status: 'ok', version: '5.0.0', time: new Date().toISOString() }));
 app.use('/uploads', express.static(uploadDirectory, { immutable: true, maxAge: '30d' }));
 app.use('/api/v1', authenticate);
@@ -74,7 +78,11 @@ app.get('/api/v1/cards/:cardId/attachments/:attachmentId/download', (req, res) =
 });
 app.delete('/api/v1/cards/:cardId/attachments/:attachmentId', (req, res) => { const item = store.removeAttachment(req.params.cardId, req.params.attachmentId); if (item.kind === 'file') removeUploadedFile(item.url); res.status(204).end(); });
 // Backward-compatible photo endpoints.
-app.post('/api/v1/cards/:id/photos', upload.single('photo'), (req, res) => { if (!req.file || !imageTypes.has(req.file.mimetype)) { if (req.file) removeUploadedFile(`/uploads/${req.file.filename}`); return res.status(400).json({ error: 'bad_request', message: 'A JPEG, PNG, GIF, or WebP photo is required.' }); } res.status(201).json(store.addAttachment(req.params.id, { kind: 'file', name: req.file.originalname, url: `/uploads/${req.file.filename}`, mime: req.file.mimetype, size: req.file.size })); });
+app.post('/api/v1/cards/:id/photos', upload.single('photo'), (req, res) => {
+  if (!req.file || !imageTypes.has(req.file.mimetype)) { if (req.file) removeUploadedFile(`/uploads/${req.file.filename}`); return res.status(400).json({ error: 'bad_request', message: 'A JPEG, PNG, GIF, or WebP photo is required.' }); }
+  try { res.status(201).json(store.addAttachment(req.params.id, { kind: 'file', name: req.file.originalname, url: `/uploads/${req.file.filename}`, mime: req.file.mimetype, size: req.file.size })); }
+  catch (error) { removeUploadedFile(`/uploads/${req.file.filename}`); throw error; }
+});
 app.delete('/api/v1/cards/:cardId/photos/:photoId', (req, res) => { const item = store.removeAttachment(req.params.cardId, req.params.photoId); if (item.kind === 'file') removeUploadedFile(item.url); res.status(204).end(); });
 app.get('/api/v1/cards/:id/comments', (req, res) => res.json(store.listComments(req.params.id)));
 app.post('/api/v1/cards/:id/comments', (req, res) => res.status(201).json(store.createComment(req.params.id, req.body)));
@@ -84,7 +92,7 @@ app.get('/api/v1/activity', (req, res) => res.json(store.listActivity(req.query)
 app.get('/api/v1/export', (_req, res) => { res.setHeader('Content-Disposition', 'attachment; filename="localboard-export.json"'); res.json(store.state); });
 app.get('/api/openapi.json', (_req, res) => res.sendFile(path.join(root, 'openapi.json')));
 app.use(express.static(path.join(root, 'public'), { extensions: ['html'] }));
-app.use((error, req, res, _next) => { console.error(`${req.method} ${req.path}:`, error.message); if (error.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'too_large', message: 'Files must be 25 MB or smaller.' }); res.status(error.status || 500).json({ error: error.status === 404 ? 'not_found' : error.status === 400 ? 'bad_request' : 'internal_error', message: error.message }); });
+app.use((error, req, res, _next) => { console.error(`${req.method} ${req.path}:`, error.message); if (error.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'too_large', message: 'Files must be 25 MB or smaller.' }); if (error.type === 'entity.too.large') return res.status(413).json({ error: 'too_large', message: 'JSON requests exceed the allowed size.' }); res.status(error.status || 500).json({ error: error.status === 404 ? 'not_found' : error.status === 400 ? 'bad_request' : 'internal_error', message: error.message }); });
 
 if (require.main === module) app.listen(port, host, () => console.log(`LocalBoard listening on http://${host}:${port}`));
 module.exports = app;

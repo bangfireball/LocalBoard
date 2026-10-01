@@ -7,7 +7,12 @@ const makeId = (prefix) => `${prefix}_${crypto.randomUUID().replaceAll('-', '').
 const httpError = (message, status = 400) => Object.assign(new Error(message), { status });
 const labelColors = ['#4bce97', '#f5cd47', '#fea362', '#f87168', '#9f8fef', '#579dff'];
 const recurrences = ['none', 'daily', 'weekly', 'monthly', 'yearly'];
+const colorPattern = /^#[0-9a-fA-F]{6}$/;
+const trelloColors = { green: '#4bce97', yellow: '#f5cd47', orange: '#fea362', red: '#f87168', purple: '#9f8fef', blue: '#579dff', sky: '#6cc3e0', lime: '#94c748', pink: '#e774bb', black: '#626f86' };
 const defaultLabels = () => labelColors.map((color, position) => ({ id: makeId('label'), name: '', color, position }));
+const clone = (value) => structuredClone(value);
+const requireColor = (value) => { const color = String(value); if (!colorPattern.test(color)) throw httpError('color must be a six-digit hex value'); return color; };
+const validDate = (value) => { if (!value) return ''; const date = new Date(value); return Number.isNaN(date.getTime()) ? '' : date.toISOString(); };
 
 function initialState() {
   const timestamp = now();
@@ -35,10 +40,12 @@ class Store {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     if (!fs.existsSync(file)) this.write(initialState());
     this.state = this.read();
+    if (!this.state || typeof this.state !== 'object' || Array.isArray(this.state) || !Number.isInteger(this.state.version) || ![2, 3, 4, 5].includes(this.state.version)) {
+      throw new Error(`Unsupported data store version: ${this.state?.version ?? 'missing'} (supported: 2-5)`);
+    }
     if (this.state.version === 2) this.migrateV2();
     if (this.state.version === 3) this.migrateV3();
     if (this.state.version === 4) this.migrateV4();
-    if (this.state.version !== 5) { this.state = initialState(); this.write(); }
   }
 
   read() { try { return JSON.parse(fs.readFileSync(this.file, 'utf8')); } catch (error) { throw new Error(`Unable to read data store: ${error.message}`); } }
@@ -95,14 +102,17 @@ class Store {
   }
   createBoard(input) {
     if (!input.name?.trim()) throw httpError('name is required');
-    const timestamp = now(); const board = { id: makeId('board'), name: input.name.trim(), background: input.background || '#0c66e4', labels: defaultLabels(), createdAt: timestamp, updatedAt: timestamp };
+    const background = Object.hasOwn(input, 'background') ? requireColor(input.background) : '#0c66e4';
+    const timestamp = now(); const board = { id: makeId('board'), name: input.name.trim(), background, labels: defaultLabels(), createdAt: timestamp, updatedAt: timestamp };
     this.state.boards.push(board); ['To do', 'Doing', 'Done'].forEach((name, position) => this.state.lists.push({ id: makeId('list'), boardId: board.id, name, position, archived: false }));
     this.log(board.id, null, 'board.created', `Created board “${board.name}”`); this.save(); return board;
   }
   updateBoard(boardId, input) {
     const board = this.getBoard(boardId); const before = board.name;
-    if (Object.hasOwn(input, 'name')) { if (!input.name?.trim()) throw httpError('name is required'); board.name = input.name.trim(); }
-    if (Object.hasOwn(input, 'background')) board.background = String(input.background);
+    const name = Object.hasOwn(input, 'name') ? String(input.name || '').trim() : board.name;
+    if (!name) throw httpError('name is required');
+    const background = Object.hasOwn(input, 'background') ? requireColor(input.background) : board.background;
+    board.name = name; board.background = background;
     this.touchBoard(boardId); this.log(boardId, null, 'board.updated', before === board.name ? 'Changed board settings' : `Renamed board to “${board.name}”`); this.save(); return board;
   }
   deleteBoard(boardId) {
@@ -113,6 +123,143 @@ class Store {
     this.state.comments = this.state.comments.filter((comment) => !cardIds.has(comment.cardId)); this.state.cards = this.state.cards.filter((card) => !listIds.has(card.listId));
     this.state.lists = this.state.lists.filter((list) => list.boardId !== boardId); this.state.boards = this.state.boards.filter((board) => board.id !== boardId); this.state.activity = this.state.activity.filter((item) => item.boardId !== boardId);
     this.save(); return removedAttachments;
+  }
+
+  importTrelloBoard(input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw httpError('Trello import must be a JSON object');
+    const string = (value, field, maximum, required = false) => {
+      if (typeof value !== 'string' || (required && !value.trim())) throw httpError(`${field} must be ${required ? 'a non-empty ' : ''}string`);
+      if (value.length > maximum) throw httpError(`${field} is too long`);
+      return value.trim();
+    };
+    const array = (value, field, maximum, required = false) => {
+      if (value === undefined && !required) return [];
+      if (!Array.isArray(value)) throw httpError(`${field} must be an array`);
+      if (value.length > maximum) throw httpError(`${field} has too many items`);
+      return value;
+    };
+    const sourceLists = array(input.lists, 'lists', 500, true);
+    const sourceCards = array(input.cards, 'cards', 10000, true);
+    if (!sourceLists.length) throw httpError('Trello import must contain at least one list');
+    const sourceLabels = array(input.labels, 'labels', 1000);
+    const sourceMembers = array(input.members, 'members', 5000);
+    const sourceChecklists = array(input.checklists, 'checklists', 5000);
+    const sourceActions = array(input.actions, 'actions', 50000);
+    const timestamp = now();
+    const board = { id: makeId('board'), name: string(input.name, 'name', 80, true), background: '#0c66e4', labels: [], createdAt: timestamp, updatedAt: timestamp };
+
+    const sourceId = (value, field) => string(value, `${field} id`, 200, true);
+    const uniqueById = (items, field) => {
+      const result = new Map();
+      items.forEach((item) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) throw httpError(`${field} entries must be objects`);
+        const id = sourceId(item.id, field);
+        if (result.has(id)) throw httpError(`duplicate ${field} id: ${id}`);
+        result.set(id, item);
+      });
+      return result;
+    };
+    const sourceListById = uniqueById(sourceLists, 'list');
+    const sourceCardById = uniqueById(sourceCards, 'card');
+    const memberById = uniqueById(sourceMembers, 'member');
+    const checklistById = uniqueById(sourceChecklists, 'checklist');
+    const ordered = (items) => items.map((item, index) => ({ item, index })).sort((a, b) => {
+      const left = Number(a.item.pos); const right = Number(b.item.pos);
+      return (Number.isFinite(left) ? left : a.index) - (Number.isFinite(right) ? right : b.index);
+    }).map(({ item }) => item);
+
+    const listIdMap = new Map();
+    const lists = ordered(sourceLists).map((item, position) => {
+      const id = makeId('list'); listIdMap.set(sourceId(item.id, 'list'), id);
+      return { id, boardId: board.id, name: string(item.name, 'list name', 80, true), position, archived: Boolean(item.closed) };
+    });
+
+    const labelDefinitions = new Map();
+    const addLabelDefinition = (item) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) throw httpError('label entries must be objects');
+      const id = sourceId(item.id, 'label');
+      if (!labelDefinitions.has(id)) labelDefinitions.set(id, item);
+    };
+    sourceLabels.forEach(addLabelDefinition);
+    sourceCards.forEach((card) => array(card.labels, 'card labels', 100).forEach(addLabelDefinition));
+    const labelIdMap = new Map();
+    [...labelDefinitions].forEach(([sourceId, item], position) => {
+      const colorValue = typeof item.color === 'string' ? item.color : '';
+      const color = colorPattern.test(colorValue) ? colorValue : (trelloColors[colorValue.toLowerCase()] || '#626f86');
+      const label = { id: makeId('label'), name: typeof item.name === 'string' ? string(item.name, 'label name', 60) : '', color, position };
+      board.labels.push(label); labelIdMap.set(sourceId, label.id);
+    });
+
+    const rootChecklistByCard = new Map();
+    sourceChecklists.forEach((item) => {
+      if (item.idCard !== undefined) {
+        const cardId = sourceId(item.idCard, 'checklist card');
+        if (!sourceCardById.has(cardId)) throw httpError(`checklist references unknown card: ${cardId}`);
+        const entries = rootChecklistByCard.get(cardId) || []; entries.push(item); rootChecklistByCard.set(cardId, entries);
+      }
+    });
+    const memberName = (id) => {
+      const member = memberById.get(id); if (!member) throw httpError(`card references unknown member: ${id}`);
+      return [member.fullName, member.username, member.id].find((value) => typeof value === 'string' && value.trim())?.trim() || 'Unknown';
+    };
+    const cardIdMap = new Map();
+    const cards = [];
+    ordered(sourceCards).forEach((item) => {
+      const sourceListId = sourceId(item.idList, 'card list');
+      if (!sourceListById.has(sourceListId)) throw httpError(`card references unknown list: ${sourceListId}`);
+      const referencedLabels = [...array(item.idLabels, 'card label ids', 100), ...array(item.labels, 'card labels', 100).map((label) => label.id)];
+      const labels = [...new Set(referencedLabels.map((id) => sourceId(id, 'card label')).map((id) => {
+        if (!labelIdMap.has(id)) throw httpError(`card references unknown label: ${id}`); return labelIdMap.get(id);
+      }))];
+      const memberIds = array(item.idMembers, 'card member ids', 100).map((id) => sourceId(id, 'card member'));
+      const canonicalCardId = sourceId(item.id, 'card');
+      let checklists = [...(rootChecklistByCard.get(canonicalCardId) || [])];
+      array(item.idChecklists, 'card checklist ids', 500).forEach((idValue) => {
+        const id = sourceId(idValue, 'card checklist'); const checklist = checklistById.get(id);
+        if (!checklist) throw httpError(`card references unknown checklist: ${id}`);
+        if (!checklists.includes(checklist)) checklists.push(checklist);
+      });
+      array(item.checklists, 'card checklists', 500).forEach((checklist) => checklists.push(checklist));
+      const usePrefix = checklists.length > 1;
+      const checklist = checklists.flatMap((group) => {
+        if (!group || typeof group !== 'object' || Array.isArray(group)) throw httpError('checklist entries must be objects');
+        const groupName = typeof group.name === 'string' ? string(group.name, 'checklist name', 160) : '';
+        const checkItems = array(group.checkItems, 'checklist items', 1000);
+        checkItems.forEach((checkItem) => { if (!checkItem || typeof checkItem !== 'object' || Array.isArray(checkItem)) throw httpError('checklist items must be objects'); });
+        return ordered(checkItems).map((checkItem) => {
+          const itemName = string(checkItem.name, 'checklist item name', 500, true);
+          return { id: makeId('item'), text: usePrefix && groupName ? `${groupName}: ${itemName}` : itemName, done: checkItem.state === 'complete' };
+        });
+      });
+      let dueAt = '';
+      if (item.due) { dueAt = validDate(item.due); if (!dueAt) throw httpError('card due date is invalid'); }
+      const activityDate = validDate(item.dateLastActivity);
+      const id = makeId('card'); cardIdMap.set(canonicalCardId, id);
+      cards.push({ id, listId: listIdMap.get(sourceListId), title: string(item.name, 'card name', 160, true), description: typeof item.desc === 'string' ? string(item.desc, 'card description', 100000) : '', labels, dueAt, dueComplete: Boolean(item.dueComplete), reminderMinutes: null, recurrence: 'none', assignee: memberIds.map(memberName).join(', '), checklist, attachments: [], position: cards.filter((card) => card.listId === listIdMap.get(sourceListId)).length, archived: Boolean(item.closed), createdAt: timestamp, updatedAt: activityDate || timestamp });
+    });
+
+    const comments = [];
+    sourceActions.forEach((action) => {
+      if (!action || typeof action !== 'object' || Array.isArray(action)) throw httpError('action entries must be objects');
+      if (action.type !== 'commentCard') return;
+      const sourceCardId = action.data?.card?.id;
+      if (typeof sourceCardId !== 'string') return;
+      const canonicalCardId = sourceId(sourceCardId, 'comment card');
+      if (!cardIdMap.has(canonicalCardId)) return;
+      const text = string(action.data?.text, 'comment text', 100000, true);
+      const createdAt = validDate(action.date); if (!createdAt) throw httpError('comment timestamp is invalid');
+      const creator = action.memberCreator || {};
+      const author = [creator.fullName, creator.username, creator.id].find((value) => typeof value === 'string' && value.trim())?.trim() || 'Unknown';
+      comments.push({ id: makeId('comment'), cardId: cardIdMap.get(canonicalCardId), text, author: author.slice(0, 160), createdAt, updatedAt: createdAt });
+    });
+
+    const previous = this.state;
+    this.state = clone(previous);
+    this.state.boards.push(board); this.state.lists.push(...lists); this.state.cards.push(...cards); this.state.comments.push(...comments);
+    this.state.activity.unshift({ id: makeId('activity'), boardId: board.id, cardId: null, action: 'board.imported', detail: `Imported Trello board “${board.name}”`, createdAt: timestamp });
+    this.state.activity = this.state.activity.slice(0, 5000);
+    try { this.save(); } catch (error) { this.state = previous; throw error; }
+    return board;
   }
 
   listCards(query = {}) {
@@ -132,17 +279,25 @@ class Store {
     this.state.cards.push(card); this.touchBoard(list.boardId); this.log(list.boardId, card.id, 'card.created', `Created “${card.title}”`); this.save(); return card;
   }
   updateCard(cardId, input) {
-    const card = this.getCard(cardId); const boardId = this.listFor(card.listId).boardId; const changes = [];
-    for (const key of ['title', 'description', 'dueAt', 'assignee']) if (Object.hasOwn(input, key) && String(input[key] ?? '') !== card[key]) { card[key] = String(input[key] ?? ''); changes.push(key); }
-    if (Object.hasOwn(input, 'labels')) { card.labels = this.cleanLabels(input.labels, boardId); changes.push('labels'); }
-    if (Object.hasOwn(input, 'checklist')) { card.checklist = this.cleanChecklist(input.checklist); changes.push('checklist'); }
-    if (Object.hasOwn(input, 'reminderMinutes')) { card.reminderMinutes = input.reminderMinutes === null || input.reminderMinutes === '' ? null : Math.max(0, Number(input.reminderMinutes)); changes.push('reminder'); }
-    if (Object.hasOwn(input, 'recurrence')) { card.recurrence = this.cleanRecurrence(input.recurrence); changes.push('recurrence'); }
-    if (Object.hasOwn(input, 'dueComplete') && Boolean(input.dueComplete) !== card.dueComplete) { card.dueComplete = Boolean(input.dueComplete); changes.push(card.dueComplete ? 'due date completed' : 'due date reopened'); }
-    if (!card.title.trim()) throw httpError('title is required');
-    card.title = card.title.trim(); card.updatedAt = now(); this.touchBoard(boardId);
-    if (changes.length) this.log(boardId, card.id, changes.includes('due date completed') ? 'due.completed' : 'card.updated', `Updated ${changes.join(', ')} on “${card.title}”`);
-    this.save(); return card;
+    const card = this.getCard(cardId); const boardId = this.listFor(card.listId).boardId; const candidate = clone(card); const changes = [];
+    for (const key of ['title', 'description', 'dueAt', 'assignee']) if (Object.hasOwn(input, key) && String(input[key] ?? '') !== candidate[key]) { candidate[key] = String(input[key] ?? ''); changes.push(key); }
+    if (Object.hasOwn(input, 'labels')) { candidate.labels = this.cleanLabels(input.labels, boardId); changes.push('labels'); }
+    if (Object.hasOwn(input, 'checklist')) { candidate.checklist = this.cleanChecklist(input.checklist); changes.push('checklist'); }
+    if (Object.hasOwn(input, 'reminderMinutes')) {
+      if (input.reminderMinutes === null || input.reminderMinutes === '') candidate.reminderMinutes = null;
+      else { const reminder = Number(input.reminderMinutes); if (!Number.isFinite(reminder)) throw httpError('reminder must be a number'); candidate.reminderMinutes = Math.max(0, reminder); }
+      changes.push('reminder');
+    }
+    if (Object.hasOwn(input, 'recurrence')) { candidate.recurrence = this.cleanRecurrence(input.recurrence); changes.push('recurrence'); }
+    if (Object.hasOwn(input, 'dueComplete') && Boolean(input.dueComplete) !== candidate.dueComplete) { candidate.dueComplete = Boolean(input.dueComplete); changes.push(candidate.dueComplete ? 'due date completed' : 'due date reopened'); }
+    if (!candidate.title.trim()) throw httpError('title is required');
+    candidate.title = candidate.title.trim(); candidate.updatedAt = now();
+    const previous = this.state;
+    this.state = clone(previous);
+    const updated = this.getCard(cardId); Object.assign(updated, candidate); this.touchBoard(boardId);
+    if (changes.length) this.log(boardId, updated.id, changes.includes('due date completed') ? 'due.completed' : 'card.updated', `Updated ${changes.join(', ')} on “${updated.title}”`);
+    try { this.save(); } catch (error) { this.state = previous; throw error; }
+    return updated;
   }
   completeDue(cardId) {
     const card = this.getCard(cardId); const boardId = this.listFor(card.listId).boardId;
@@ -175,8 +330,8 @@ class Store {
   archiveList(listId, archived = true) { const list = this.listFor(listId); list.archived = Boolean(archived); this.touchBoard(list.boardId); this.log(list.boardId, null, archived ? 'list.archived' : 'list.restored', `${archived ? 'Archived' : 'Restored'} list “${list.name}”`); this.save(); return list; }
   deleteList(listId) { const list = this.listFor(listId); if (this.state.cards.some((card) => card.listId === listId)) throw httpError('move or delete this list’s cards first'); this.state.lists = this.state.lists.filter((item) => item.id !== listId); this.reindexLists(list.boardId); this.touchBoard(list.boardId); this.log(list.boardId, null, 'list.deleted', `Permanently deleted list “${list.name}”`); this.save(); }
 
-  createLabel(boardId, input) { const board = this.getBoard(boardId); const label = { id: makeId('label'), name: String(input.name || '').trim(), color: String(input.color || '#4bce97'), position: board.labels.length }; board.labels.push(label); this.touchBoard(boardId); this.save(); return label; }
-  updateLabel(boardId, labelId, input) { const board = this.getBoard(boardId); const label = board.labels.find((item) => item.id === labelId); if (!label) throw httpError('label not found', 404); if (Object.hasOwn(input, 'name')) label.name = String(input.name || '').trim(); if (Object.hasOwn(input, 'color')) label.color = String(input.color); this.touchBoard(boardId); this.save(); return label; }
+  createLabel(boardId, input) { const board = this.getBoard(boardId); const color = Object.hasOwn(input, 'color') ? requireColor(input.color) : '#4bce97'; const label = { id: makeId('label'), name: String(input.name || '').trim(), color, position: board.labels.length }; board.labels.push(label); this.touchBoard(boardId); this.save(); return label; }
+  updateLabel(boardId, labelId, input) { const board = this.getBoard(boardId); const label = board.labels.find((item) => item.id === labelId); if (!label) throw httpError('label not found', 404); const color = Object.hasOwn(input, 'color') ? requireColor(input.color) : label.color; if (Object.hasOwn(input, 'name')) label.name = String(input.name || '').trim(); label.color = color; this.touchBoard(boardId); this.save(); return label; }
   deleteLabel(boardId, labelId) { const board = this.getBoard(boardId); if (!board.labels.some((item) => item.id === labelId)) throw httpError('label not found', 404); board.labels = board.labels.filter((item) => item.id !== labelId); this.cardsForBoard(boardId).forEach((card) => { card.labels = card.labels.filter((id) => id !== labelId); }); this.touchBoard(boardId); this.save(); }
 
   addAttachment(cardId, attachment) {

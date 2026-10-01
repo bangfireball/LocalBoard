@@ -23,6 +23,11 @@
       <input id="new-board-name" name="name" maxlength="80" placeholder="Board title" required>
       <button type="submit">Create board</button>
     </form>
+    <section class="import-board">
+      <strong>Import a board</strong>
+      <label class="import-button">Import Trello JSON<input id="trello-import" type="file" accept="application/json,.json"></label>
+      <small>Creates a new board from an export up to 5 MB.</small>
+    </section>
     <p class="sidebar-hint"><kbd>B</kbd> opens and closes this menu</p>
   </aside>
 
@@ -44,21 +49,25 @@
       <div class="modal-title"><span class="modal-icon">▤</span><div><input name="title" required maxlength="160" aria-label="Card title"><p>in list <strong id="card-list-name"></strong></p></div></div>
       <div class="modal-body">
         <section class="details">
-          <label>Description <small>Type notes or paste an image from your clipboard.</small><textarea name="description" rows="6" placeholder="Add a more detailed description… Paste screenshots here with Ctrl+V."></textarea></label>
-          <label>Checklist <small>One item per line. Start completed items with [x].</small><textarea name="checklist" rows="5" placeholder="Write tests&#10;[x] Create the issue"></textarea></label>
-          <section class="attachment-section"><div class="section-heading"><strong>Attachments</strong><div class="attachment-actions"><label class="photo-upload">＋ Add files<input id="attachment-input" type="file" multiple></label><button type="button" class="muted-button" id="add-link">＋ Add link</button></div></div><div id="attachment-list" class="attachment-list"></div><small>Files up to 25 MB. Images can also be pasted into the description.</small></section>
-          <section class="comments-section"><strong>Comments</strong><div id="comment-form" class="comment-form"><textarea id="comment-text" rows="2" placeholder="Write a comment…"></textarea><div><input id="comment-author" maxlength="60" placeholder="Your name"><button type="button" id="add-comment" class="save-button">Comment</button></div></div><div id="comments-list" class="comments-list"></div></section>
-          <section class="activity-section"><strong>Activity</strong><div id="card-activity" class="card-activity"></div></section>
+          <div class="card-toolbar">
+            <label class="list-control">List<select name="listId" id="list-select"></select></label>
+            <div class="card-actions" aria-label="Add to card"><button type="button" class="muted-button" id="edit-labels" aria-haspopup="dialog" aria-controls="labels-dialog">Labels</button><button type="button" class="muted-button feature-toggle" data-feature="members" aria-expanded="false" aria-controls="card-members-panel">Members</button><button type="button" class="muted-button feature-toggle" data-feature="dates" aria-expanded="false" aria-controls="card-dates-panel">Dates</button><button type="button" class="muted-button feature-toggle" data-feature="checklist" aria-expanded="false" aria-controls="card-checklist-panel">Checklist</button><button type="button" class="muted-button feature-toggle" data-feature="attachments" aria-expanded="false" aria-controls="card-attachments-panel">Attachment</button></div>
+          </div>
+          <div class="card-metadata">
+            <section id="card-label-summary" class="metadata-group" hidden><strong>Labels</strong><div id="selected-labels" class="selected-labels"></div></section>
+            <section id="card-member-summary" class="metadata-group" hidden><strong>Member</strong><span></span></section>
+            <section id="card-date-summary" class="metadata-group" hidden><strong>Due date</strong><span></span></section>
+          </div>
+          <section class="description-section"><strong>Description</strong><label><small>Type notes or paste an image from your clipboard.</small><textarea name="description" rows="3" placeholder="Add a more detailed description… Paste screenshots here with Ctrl+V."></textarea></label></section>
+          <section id="card-members-panel" class="feature-panel" hidden><strong>Member</strong><label>Assigned to<input name="assignee" placeholder="Name"></label></section>
+          <section id="card-dates-panel" class="feature-panel" hidden><strong>Dates</strong><div class="date-fields"><label>Due date and time<input name="dueAt" type="datetime-local"></label><label>Reminder<select name="reminderMinutes"><option value="">None</option><option value="0">At due time</option><option value="10">10 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></label><label>Repeat<select name="recurrence"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label><label class="due-complete"><input name="dueComplete" type="checkbox"> Due date complete</label></div></section>
+          <section id="card-checklist-panel" class="feature-panel" hidden><strong>Checklist</strong><label><small>One item per line. Start completed items with [x].</small><textarea name="checklist" rows="5" placeholder="Write tests&#10;[x] Create the issue"></textarea></label></section>
+          <section id="card-attachments-panel" class="attachment-section" hidden><div class="section-heading"><strong>Attachments</strong><div class="attachment-actions"><label class="photo-upload">＋ Add files<input id="attachment-input" type="file" multiple></label><button type="button" class="muted-button" id="add-link">＋ Add link</button></div></div><div id="attachment-list" class="attachment-list"></div><small>Files up to 25 MB. Images can also be pasted into the description.</small></section>
+          <button type="button" class="muted-button archive-card-button" id="archive-card">Archive card</button>
         </section>
-        <aside>
-          <label>List<select name="listId" id="list-select"></select></label>
-          <div class="labels-control"><span>Labels</span><div id="selected-labels" class="selected-labels"></div><button type="button" class="muted-button" id="edit-labels">Edit labels</button></div>
-          <label>Assigned to<input name="assignee" placeholder="Name"></label>
-          <label>Due date and time<input name="dueAt" type="datetime-local"></label>
-          <label>Reminder<select name="reminderMinutes"><option value="">None</option><option value="0">At due time</option><option value="10">10 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option></select></label>
-          <label>Repeat<select name="recurrence"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label>
-          <label class="due-complete"><input name="dueComplete" type="checkbox"> Due date complete</label>
-          <button type="button" class="muted-button" id="archive-card">Archive card</button>
+        <aside class="conversation-panel">
+          <section class="comments-section"><strong>Comments and activity</strong><div id="comment-form" class="comment-form"><textarea id="comment-text" rows="2" placeholder="Write a comment…"></textarea><div><input id="comment-author" maxlength="60" placeholder="Your name"><button type="button" id="add-comment" class="save-button">Comment</button></div></div><div id="comments-list" class="comments-list"></div></section>
+          <section class="activity-section"><strong>Activity</strong><div id="card-activity" class="card-activity"></div></section>
         </aside>
       </div>
       <div class="modal-actions"><button type="button" class="muted-button" data-close>Cancel</button><button class="save-button" type="submit">Save</button></div>

@@ -17,7 +17,7 @@ A deliberately simple, Trello-inspired personal Kanban app. The product supports
 ## Interface
 
 - A compact top bar contains the Board switcher, search, and API link.
-- Clicking **Board** or pressing **B** opens a sidebar for switching and creating boards.
+- Clicking **Board** or pressing **B** opens a sidebar for switching, creating, and importing boards.
 - The board title and background controls sit above horizontally scrolling lists.
 - Lists use a neutral surface over a colored board background.
 - Cards show only useful signals: label colors, due date, description indicator, and checklist progress.
@@ -65,9 +65,12 @@ The static browser client and external clients use the same Express JSON API. `S
 - `GET/POST/PATCH/DELETE .../comments` — card discussion
 - `GET /api/v1/activity` — board or card audit history
 - `GET /api/v1/export` — download a backup
+- `POST /api/v1/import/trello` — create a board from a Trello JSON export
 - `GET /api/openapi.json` — machine-readable contract
 
-An optional `KANBAN_API_KEY` protects API routes. The browser asks for it once per tab and keeps it in session storage. Uploaded files are stored under the data directory with randomized URLs. In-app and browser-notification reminders run while LocalBoard is open; the due metadata remains available to external automation at all times.
+An optional `KANBAN_API_KEY` protects API routes for direct trusted development; Docker Compose requires it because the service publishes a LAN port. The browser asks for it once per tab and keeps it in session storage. Uploaded files are stored under the data directory with randomized URLs. In-app and browser-notification reminders run while LocalBoard is open; the due metadata remains available to external automation at all times.
+
+Trello import is intentionally bounded and transactional. It creates a new board and maps lists, cards, descriptions, labels, due completion, members, checklists, and `commentCard` comments with original authors and timestamps. It ignores attachments and unknown fields and never makes remote requests.
 
 All confirmations and text entry use accessible native HTML dialogs; the interface does not rely on browser `alert`, `prompt`, or `confirm` boxes.
 

@@ -21,9 +21,11 @@ A deliberately simple, Trello-inspired personal Kanban app. The product supports
 - The board title and background controls sit above horizontally scrolling lists.
 - Lists use a neutral surface over a colored board background.
 - Cards show only useful signals: label colors, due date, description indicator, and checklist progress.
-- Card details open in a focused dialog that closes when its backdrop is clicked; clipboard images pasted into the description are uploaded directly to the card.
+- Card details open in a focused, Trello-inspired split dialog: editable card content stays on the left, while comments and activity stay on the right. On narrow screens the columns stack.
+- The description editor opens with every card and grows with its contents up to a bounded height. Clipboard images pasted there are uploaded directly to the card.
+- Labels, members, dates, checklists, and attachments are activated through compact controls; optional sections stay hidden until used or populated.
 - Photos open in a full-size, in-browser lightbox.
-- Trello-style colored labels are defined and customized per board, then selected on cards.
+- Trello-style colored labels are defined and customized per board, then selected on cards. Labels without a user-defined name remain visually blank.
 - Adding cards and lists happens inline, without navigating away.
 
 ## Data model
@@ -62,7 +64,8 @@ The static browser client and external clients use the same Express JSON API. `S
 - `GET/PATCH/DELETE /api/v1/cards/:id` — card operations
 - `POST /api/v1/cards/:id/move|archive|restore|complete-due` — workflow operations
 - `POST/DELETE /api/v1/cards/:id/attachments` — files and links
-- `GET/POST/PATCH/DELETE .../comments` — card discussion
+- `GET/POST /api/v1/cards/:id/comments` — list or create card comments
+- `PATCH/DELETE /api/v1/cards/:cardId/comments/:commentId` — edit or delete comments
 - `GET /api/v1/activity` — board or card audit history
 - `GET /api/v1/export` — download a backup
 - `POST /api/v1/import/trello` — create a board from a Trello JSON export

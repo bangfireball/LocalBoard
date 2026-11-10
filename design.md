@@ -60,9 +60,10 @@ The static browser client and external clients use the same Express JSON API. `S
 - `GET/PATCH/DELETE /api/v1/boards/:id` — get, edit, or delete a board
 - `GET/POST /api/v1/lists` — list or create lists
 - `PATCH /api/v1/lists/:id` and `POST .../archive|restore` — edit or archive lists
+- `POST /api/v1/lists/:id/move` — reorder a column within its board using `{position}`
 - `GET/POST /api/v1/cards` — search/list or create cards
 - `GET/PATCH/DELETE /api/v1/cards/:id` — card operations
-- `POST /api/v1/cards/:id/move|archive|restore|complete-due` — workflow operations
+- `POST /api/v1/cards/:id/move|archive|restore|complete-due` — workflow operations; move accepts `{position, listId?}`, defaulting to the current column
 - `POST/DELETE /api/v1/cards/:id/attachments` — files and links
 - `GET/POST /api/v1/cards/:id/comments` — list or create card comments
 - `PATCH/DELETE /api/v1/cards/:cardId/comments/:commentId` — edit or delete comments
@@ -70,6 +71,8 @@ The static browser client and external clients use the same Express JSON API. `S
 - `GET /api/v1/export` — download a backup
 - `POST /api/v1/import/trello` — create a board from a Trello JSON export
 - `GET /api/openapi.json` — machine-readable contract
+
+Moves use a final zero-based `position` among active siblings after removing the moved item; omitted or oversized positions append. Positions must be non-negative integers, and siblings are renumbered consecutively. Archived items cannot be moved, and card moves stay within a board.
 
 An optional `KANBAN_API_KEY` protects API routes for direct trusted development; Docker Compose requires it because the service publishes a LAN port. The browser asks for it once per tab and keeps it in session storage. Uploaded files are stored under the data directory with randomized URLs. In-app and browser-notification reminders run while LocalBoard is open; the due metadata remains available to external automation at all times.
 

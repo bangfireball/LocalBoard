@@ -307,10 +307,13 @@ class Store {
     card.updatedAt = now(); this.touchBoard(boardId); this.save(); return card;
   }
   moveCard(cardId, listId, position) {
-    const card = this.getCard(cardId); const targetList = this.listFor(listId); const oldList = this.listFor(card.listId);
+    const card = this.getCard(cardId);
+    if (card.archived) throw httpError('cannot move an archived card');
+    if (listId === undefined) listId = card.listId;
+    const targetList = this.listFor(listId); const oldList = this.listFor(card.listId);
     if (targetList.boardId !== oldList.boardId) throw httpError('cards cannot move between boards'); if (targetList.archived) throw httpError('cannot move to an archived list');
     const oldListId = card.listId; const destination = this.state.cards.filter((item) => item.listId === listId && item.id !== cardId && !item.archived).sort((a, b) => a.position - b.position);
-    const target = Math.max(0, Math.min(Number.isFinite(Number(position)) ? Number(position) : destination.length, destination.length));
+    const target = this.movePosition(position, destination.length);
     card.listId = listId; destination.splice(target, 0, card); destination.forEach((item, index) => { item.position = index; }); if (oldListId !== listId) this.reindex(oldListId);
     card.updatedAt = now(); this.touchBoard(targetList.boardId); this.log(targetList.boardId, card.id, 'card.moved', `Moved “${card.title}” from ${oldList.name} to ${targetList.name}`); this.save(); return card;
   }
@@ -327,6 +330,15 @@ class Store {
     this.state.lists.push(list); this.touchBoard(board.id); this.log(board.id, null, 'list.created', `Created list “${list.name}”`); this.save(); return list;
   }
   updateList(listId, input) { const list = this.listFor(listId); if (Object.hasOwn(input, 'name')) { if (!input.name?.trim()) throw httpError('name is required'); list.name = input.name.trim(); } this.touchBoard(list.boardId); this.log(list.boardId, null, 'list.updated', `Updated list “${list.name}”`); this.save(); return list; }
+  moveList(listId, position) {
+    const list = this.listFor(listId);
+    if (list.archived) throw httpError('cannot move an archived list');
+    const destination = this.state.lists.filter((item) => item.boardId === list.boardId && item.id !== listId && !item.archived).sort((a, b) => a.position - b.position);
+    const target = this.movePosition(position, destination.length);
+    destination.splice(target, 0, list);
+    destination.forEach((item, index) => { item.position = index; });
+    this.touchBoard(list.boardId); this.log(list.boardId, null, 'list.moved', `Moved list “${list.name}” to position ${target}`); this.save(); return list;
+  }
   archiveList(listId, archived = true) { const list = this.listFor(listId); list.archived = Boolean(archived); this.touchBoard(list.boardId); this.log(list.boardId, null, archived ? 'list.archived' : 'list.restored', `${archived ? 'Archived' : 'Restored'} list “${list.name}”`); this.save(); return list; }
   deleteList(listId) { const list = this.listFor(listId); if (this.state.cards.some((card) => card.listId === listId)) throw httpError('move or delete this list’s cards first'); this.state.lists = this.state.lists.filter((item) => item.id !== listId); this.reindexLists(list.boardId); this.touchBoard(list.boardId); this.log(list.boardId, null, 'list.deleted', `Permanently deleted list “${list.name}”`); this.save(); }
 
@@ -351,6 +363,11 @@ class Store {
   cleanChecklist(items) { return Array.isArray(items) ? items.map((item) => ({ id: item.id || makeId('item'), text: String(item.text || '').trim(), done: Boolean(item.done) })).filter((item) => item.text) : []; }
   cleanRecurrence(value) { return recurrences.includes(value) ? value : 'none'; }
   nextDue(value, recurrence) { const date = new Date(value); if (Number.isNaN(date.getTime())) throw httpError('invalid due date'); if (recurrence === 'daily') date.setDate(date.getDate() + 1); if (recurrence === 'weekly') date.setDate(date.getDate() + 7); if (recurrence === 'monthly') date.setMonth(date.getMonth() + 1); if (recurrence === 'yearly') date.setFullYear(date.getFullYear() + 1); const pad = (number) => String(number).padStart(2, '0'); return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`; }
+  movePosition(position, length) {
+    if (position === undefined) return length;
+    if (!Number.isSafeInteger(position) || position < 0) throw httpError('position must be a non-negative integer');
+    return Math.min(position, length);
+  }
   reindex(listId) { this.state.cards.filter((item) => item.listId === listId && !item.archived).sort((a, b) => a.position - b.position).forEach((item, index) => { item.position = index; }); }
   reindexLists(boardId) { this.state.lists.filter((item) => item.boardId === boardId && !item.archived).sort((a, b) => a.position - b.position).forEach((item, index) => { item.position = index; }); }
 }

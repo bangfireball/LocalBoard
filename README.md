@@ -67,6 +67,16 @@ curl -X POST http://localhost:3001/api/v1/cards/CARD_ID/move \
   -H 'X-API-Key: your-key' \
   -d '{"listId":"list_doing","position":0}'
 
+# Reorder a card within its current column (first position)
+curl -X POST http://localhost:3001/api/v1/cards/CARD_ID/move \
+  -H 'Content-Type: application/json' -H 'X-API-Key: your-key' \
+  -d '{"position":0}'
+
+# Reorder a column within its board (first position)
+curl -X POST http://localhost:3001/api/v1/lists/LIST_ID/move \
+  -H 'Content-Type: application/json' -H 'X-API-Key: your-key' \
+  -d '{"position":0}'
+
 # Search
 curl -H 'X-API-Key: your-key' 'http://localhost:3001/api/v1/cards?q=review'
 
@@ -78,6 +88,8 @@ curl -X POST http://localhost:3001/api/v1/import/trello \
 # Backup
 curl -H 'X-API-Key: your-key' http://localhost:3001/api/v1/export > board-backup.json
 ```
+
+Move endpoints accept a non-negative integer `position`: the final zero-based index among active siblings after removing the moved item. Omit `position` (send `{}`) or use an index beyond the end to append. Sibling positions are renumbered consecutively. Archived cards/columns cannot be moved, and cards cannot move between boards. Columns are called lists in the API.
 
 Trello import always creates a new board. It maps ordered lists/cards, descriptions, labels, due/completed state, members into the single assignee field, checklists, and `commentCard` comments. Comment authors and source timestamps are preserved. Attachments and unsupported fields are ignored; LocalBoard never fetches remote attachment URLs. Invalid imports are rejected without creating a partial board.
 

@@ -51,6 +51,7 @@ app.delete('/api/v1/boards/:id/labels/:labelId', (req, res) => { store.deleteLab
 app.get('/api/v1/lists', (req, res) => res.json(store.boardState(req.query.boardId).lists));
 app.post('/api/v1/lists', (req, res) => res.status(201).json(store.createList(req.body)));
 app.patch('/api/v1/lists/:id', (req, res) => res.json(store.updateList(req.params.id, req.body)));
+app.post('/api/v1/lists/:id/move', (req, res) => res.json(store.moveList(req.params.id, req.body.position)));
 app.post('/api/v1/lists/:id/archive', (req, res) => res.json(store.archiveList(req.params.id, true)));
 app.post('/api/v1/lists/:id/restore', (req, res) => res.json(store.archiveList(req.params.id, false)));
 app.delete('/api/v1/lists/:id', (req, res) => { store.deleteList(req.params.id); res.status(204).end(); });
